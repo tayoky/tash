@@ -42,7 +42,7 @@ static char *get_string(FILE *file){
 				syntax_error(tok);
 			}
 			if(tok->type == T_QUOTE)break;
-			if(tok->type == T_NEWLINE)show_ps2();
+			if(file == stdin && tok->type == T_NEWLINE)show_ps2();
 			const char *name = token2str(tok);
 			append(name);
 		
@@ -117,6 +117,10 @@ int interpret_line(FILE *file){
 			execvp(argv[0],argv);
 			exit(EXIT_FAILURE);
 		}
+		for(int i=0;i<argc;i++){
+			free(argv[i]);
+		}
+		free(argv);
 		waitpid(child,NULL,0);
 	}
 		

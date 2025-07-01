@@ -105,8 +105,16 @@ int interpret_line(FILE *file){
 		argv[argc-1] = arg;
 	}
 
-	//consume a token
-	destroy_token(get_token(file));
+	token *tok = get_token(file);
+	switch(tok->type){
+	case T_HASH:
+		while(tok->type != T_NEWLINE && tok->type != T_EOF){
+			destroy_token(tok);
+			tok = get_token(file);
+		}
+	}
+
+	destroy_token(tok);
 
 	argv = realloc(argv,sizeof(char *) * (argc + 1));
 	argv[argc] = NULL;
@@ -115,6 +123,7 @@ int interpret_line(FILE *file){
 		pid_t child = fork();
 		if(!child){
 			execvp(argv[0],argv);
+			perror(argv[0]);
 			exit(EXIT_FAILURE);
 		}
 		for(int i=0;i<argc;i++){

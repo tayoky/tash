@@ -41,6 +41,7 @@ static char *get_string(FILE *file){
 				syntax_error(tok);
 			}
 			if(tok->type == T_QUOTE)break;
+			if(tok->type == T_NEWLINE)show_ps2();
 			const char *name = token2str(tok);
 			len += strlen(name);
 			str = realloc(str,len);
@@ -108,6 +109,9 @@ int interpret_line(FILE *file){
 
 int interpret(FILE *file){
 	for(;;){
+		if(file == stdin){
+			show_ps1();
+		}
 		token *tok = get_token(file);
 		if(tok->type == T_EOF)break;
 		putback = tok;

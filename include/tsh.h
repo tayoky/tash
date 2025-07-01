@@ -47,5 +47,7 @@ const char *token2str(token *);
 
 int interpret(FILE *file);
 
+void show_ps1(void);
+void show_ps2(void);
 
 #endif

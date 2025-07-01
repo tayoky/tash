@@ -18,6 +18,10 @@ static token *get_token(FILE *file){
 	return next_token(file);
 }
 
+#define append(s) len += strlen(s);\
+		str = realloc(str,len);\
+		strcat(str,s);
+
 static char *get_string(FILE *file){
 	token *tok = get_token(file);
 	char *str = strdup("");
@@ -26,10 +30,7 @@ static char *get_string(FILE *file){
 	for(;;){
 	switch(tok->type){
 	case T_STR:
-		//append
-		len += strlen(tok->value);
-		str = realloc(str,len);
-		strcat(str,tok->value);
+		append(tok->value);
 		break;
 	case T_QUOTE:
 		//continue until colon again
@@ -43,10 +44,26 @@ static char *get_string(FILE *file){
 			if(tok->type == T_QUOTE)break;
 			if(tok->type == T_NEWLINE)show_ps2();
 			const char *name = token2str(tok);
-			len += strlen(name);
-			str = realloc(str,len);
-			strcat(str,name);
+			append(name);
 		
+		}
+		break;
+	case T_DOLLAR:
+		destroy_token(tok);
+		tok = get_token(file);
+		char tmp[32];
+		switch(tok->type){
+		case T_DOLLAR:
+#ifdef __stanix__
+			sprintf(tmp,"%ld",getpid());
+#else
+			sprintf(tmp,"%d",getpid());
+#endif
+			append(tmp);
+			break;
+		case T_STR:
+			append(getvar(tok->value));
+			break;
 		}
 		break;
 	default:

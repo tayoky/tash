@@ -50,4 +50,6 @@ int interpret(FILE *file);
 void show_ps1(void);
 void show_ps2(void);
 
+char *getvar(const char *name);
+
 #endif

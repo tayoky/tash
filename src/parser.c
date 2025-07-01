@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
 #include "tsh.h"
 
 token *putback = NULL;
@@ -20,6 +22,7 @@ static char *get_string(FILE *file){
 	token *tok = get_token(file);
 	char *str = strdup("");
 	size_t len = 1;
+	int has_str = 0;
 	for(;;){
 	switch(tok->type){
 	case T_STR:
@@ -48,12 +51,17 @@ static char *get_string(FILE *file){
 	default:
 		goto end;
 	}
+		has_str = 1;
 		destroy_token(tok);
 		tok = get_token(file);
 	}
 end:
 	putback = tok;
-
+	if(!has_str){
+		//we don't have a str return NULL
+		free(str);
+		return NULL;
+	}
 	return str;
 }
 
@@ -67,11 +75,44 @@ static void skip_space(FILE *file){
 }
 
 
-int interpret(FILE *file){
-	skip_space(file);
-	get_string(file);
-	if(putback){
-		destroy_token(putback);
+int interpret_line(FILE *file){
+	int argc = 0;
+	char **argv = malloc(0);
+	for(;;){
+		skip_space(file);
+		char *arg = get_string(file);
+		if(!arg)break;
+		argc++;
+		argv = realloc(argv,sizeof(char *) * argc);
+		argv[argc-1] = arg;
 	}
+
+	//consume a token
+	destroy_token(get_token(file));
+
+	argv = realloc(argv,sizeof(char *) * (argc + 1));
+	argv[argc] = NULL;
+
+	if(argc > 0){
+		pid_t child = fork();
+		if(!child){
+			execvp(argv[0],argv);
+			exit(EXIT_FAILURE);
+		}
+		waitpid(child,NULL,0);
+	}
+		
+	return 0;
+}
+
+
+int interpret(FILE *file){
+	for(;;){
+		token *tok = get_token(file);
+		if(tok->type == T_EOF)break;
+		putback = tok;
+		interpret_line(file);
+	}
+
 	return 0;
 }

@@ -34,7 +34,7 @@ install : all
 	@cp $(BUILDDIR)/tash $(PREFIX)/bin/tash
 
 uninstall :
-	rm -f $(PREFIX)/lib/tash
+	rm -f $(PREFIX)/bin/tash
 
 clean :
 	rm -fr build

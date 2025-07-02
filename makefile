@@ -10,6 +10,7 @@ SRC = $(shell find $(SRCDIR) -name "*.c")
 OBJ = $(SRC:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
 CFLAGS += -I$(INCLUDEDIR)
+CFLAGS += -DTASH_VERSION='"$(VERSION)"'
 
 all : $(BUILDDIR)/tash
 

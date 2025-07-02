@@ -54,6 +54,8 @@ void show_ps2(void);
 
 char *getvar(const char *name);
 
+void init(int argc,char **argv);
+
 // cute custom perror
 #undef perror
 #define perror(str) error("%s : %s",str,strerror(errno))

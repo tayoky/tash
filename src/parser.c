@@ -139,10 +139,20 @@ finish:
 		free(argv);
 		if(child < 0){
 			perror("fork");
-			status = 1;
-		} else if(waitpid(child,&status,0) < 0){
+			return 1;
+		}
+
+		if(file == stdin && setpgid(child,child) < 0){
+			perror("setpgid");
+		} else if(file == stdin && tcsetpgrp(STDIN_FILENO,child) < 0){
+			perror("tcsetpgrp");
+		}
+		if(waitpid(child,&status,0) < 0){
 			perror("waitpid");
-			status = 1;
+			return 1;
+		}
+		if(file == stdin && tcsetpgrp(STDIN_FILENO,getpid()) < 0){
+			perror("tcsetpgrp");
 		}
 	}
 

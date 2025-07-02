@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include "tsh.h"
 
 token *putback = NULL;
@@ -95,6 +97,8 @@ int interpret_expr(FILE *file,int *is_last){
 	*is_last = 0;
 	int argc = 0;
 	char **argv = malloc(0);
+	int in = 0;
+	int out = 0;
 	for(;;){
 		skip_space(file);
 		char *arg = get_string(file);
@@ -111,8 +115,35 @@ int interpret_expr(FILE *file,int *is_last){
 				destroy_token(tok);
 				goto finish;
 			case T_SUPERIOR:
-				//TODO : output redirection
-				break;
+			case T_APPEND:
+				if(out)close(out);
+				int flags = tok->type == T_APPEND ? O_APPEND : O_TRUNC;
+				destroy_token(tok);
+				skip_space(file);
+				tok = get_token(file);
+				if(tok->type != T_STR)syntax_error(tok);
+				out = open(tok->value,O_WRONLY | O_CREAT | flags,S_IWUSR | S_IRUSR);
+				if(out < 0){
+					perror(tok->value);
+					return 0;
+				}
+				destroy_token(tok);
+
+				continue;
+			case T_INFERIOR:
+				if(in)close(in);
+				destroy_token(tok);
+				skip_space(file);
+				tok = get_token(file);
+				if(tok->type != T_STR)syntax_error(tok);
+				in = open(tok->value,O_RDONLY);
+				if(in < 0){
+					perror(tok->value);
+					return 0;
+				}
+				destroy_token(tok);
+
+				continue;
 			}
 			destroy_token(tok);
 
@@ -129,6 +160,18 @@ finish:
 	if(argc > 0){
 		pid_t child = fork();
 		if(!child){
+			if(out){
+				if(dup2(out,STDOUT_FILENO) < 0){
+					perror("dup2");
+				}
+				close(out);
+			}
+			if(in){
+				if(dup2(in,STDIN_FILENO) < 0){
+					perror("dup2");
+				}
+				close(in);
+			}
 			execvp(argv[0],argv);
 			perror(argv[0]);
 			exit(EXIT_FAILURE);
@@ -136,7 +179,10 @@ finish:
 		for(int i=0;i<argc;i++){
 			free(argv[i]);
 		}
-		free(argv);
+
+		if(out)close(out);
+		if(in)close(in);
+
 		if(child < 0){
 			perror("fork");
 			return 1;
@@ -155,6 +201,8 @@ finish:
 			perror("tcsetpgrp");
 		}
 	}
+
+	free(argv);
 
 	return 0;
 }

@@ -19,6 +19,7 @@ struct tok operators[]={
 	TOK(T_NEWLINE,"\r\n"),
 	TOK(T_AND,"&&"),
 	TOK(T_OR,"||"),
+	TOK(T_APPEND,">>"),
 	TOK(T_BG,"&"),
 	TOK(T_PIPE,"|"),
 	TOK(T_OPEN_BRACK,"{"),

@@ -22,6 +22,7 @@ typedef struct builtin {
 #define T_AND          2
 #define T_OR           3
 #define T_EOF          4
+#define T_APPEND       5
 #define T_PIPE        '|'
 #define T_BG          '&'
 #define T_SPACE       ' '

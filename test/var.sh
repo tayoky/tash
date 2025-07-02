@@ -1,0 +1,4 @@
+# test variable (only environement for the moment)
+
+echo path is $PATH
+echo 'home is '$HOME

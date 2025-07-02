@@ -7,7 +7,7 @@
 
 token *putback = NULL;
 
-#define syntax_error(tok) {error("syntax error near token %s\n",token_name(tok));return NULL;}
+#define syntax_error(tok) {error("syntax error near token %s",token_name(tok));destroy_token(tok);return 0;}
 
 static token *get_token(FILE *file){
 	if(putback){
@@ -38,7 +38,6 @@ static char *get_string(FILE *file){
 			destroy_token(tok);
 			tok = get_token(file);
 			if(tok->type == T_EOF){
-				destroy_token(tok);
 				syntax_error(tok);
 			}
 			if(tok->type == T_QUOTE)break;
@@ -92,33 +91,41 @@ static void skip_space(FILE *file){
 	putback = tok;
 }
 
-
-int interpret_line(FILE *file){
+int interpret_expr(FILE *file,int *is_last){
+	*is_last = 0;
 	int argc = 0;
 	char **argv = malloc(0);
 	for(;;){
 		skip_space(file);
 		char *arg = get_string(file);
-		if(!arg)break;
+		if(!arg){
+			//not a string what it is ?
+			token *tok = get_token(file);
+			switch(tok->type){
+			case T_SEMI_COLON:
+				if(!argc)syntax_error(tok);
+				destroy_token(tok);
+				goto finish;
+			case T_NEWLINE:
+				*is_last = 1;
+				destroy_token(tok);
+				goto finish;
+			case T_SUPERIOR:
+				//TODO : output redirection
+				break;
+			}
+			destroy_token(tok);
+
+		}
 		argc++;
 		argv = realloc(argv,sizeof(char *) * argc);
 		argv[argc-1] = arg;
 	}
-
-	token *tok = get_token(file);
-	switch(tok->type){
-	case T_HASH:
-		while(tok->type != T_NEWLINE && tok->type != T_EOF){
-			destroy_token(tok);
-			tok = get_token(file);
-		}
-	}
-
-	destroy_token(tok);
-
+finish:
 	argv = realloc(argv,sizeof(char *) * (argc + 1));
 	argv[argc] = NULL;
 
+	int status;
 	if(argc > 0){
 		pid_t child = fork();
 		if(!child){
@@ -130,12 +137,28 @@ int interpret_line(FILE *file){
 			free(argv[i]);
 		}
 		free(argv);
-		waitpid(child,NULL,0);
+		if(child < 0){
+			perror("fork");
+			status = 1;
+		} else if(waitpid(child,&status,0) < 0){
+			perror("waitpid");
+			status = 1;
+		}
 	}
-		
+
 	return 0;
 }
 
+int interpret_line(FILE *file){
+	//if is_last is set
+	//that mean that was the expr of the line
+	int is_last = 0;
+	int status;
+	while(!is_last){
+		status = interpret_expr(file,&is_last);
+	}
+	return status;
+}
 
 int interpret(FILE *file){
 	for(;;){

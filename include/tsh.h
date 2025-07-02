@@ -2,6 +2,8 @@
 #define _TSH_H
 
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 
 typedef struct token {
 	int type;
@@ -51,5 +53,9 @@ void show_ps1(void);
 void show_ps2(void);
 
 char *getvar(const char *name);
+
+// cute custom perror
+#undef perror
+#define perror(str) error("%s : %s",str,strerror(errno))
 
 #endif

@@ -165,6 +165,10 @@ finish:
 
 	int status;
 	if(argc > 0){
+		//first check for builtin
+		status = check_builtin(argc,argv);
+		//-1 mean no builtin
+		if(status == -1){
 		pid_t child = fork();
 		if(!child){
 			if(out){
@@ -206,6 +210,7 @@ finish:
 		}
 		if(file == stdin && tcsetpgrp(STDIN_FILENO,getpid()) < 0){
 			perror("tcsetpgrp");
+		}
 		}
 	}
 

@@ -11,11 +11,11 @@ typedef struct token {
 } token;
 
 
-typedef struct builtin {
+struct builtin {
 	int (*func)(int,char **);
 	char *name;
 	int lock_bypass;
-} builtin;
+};
 
 #define T_NULL         0
 #define T_STR          1
@@ -47,6 +47,8 @@ token *next_token(FILE *file);
 void destroy_token(token *);
 const char *token_name(token *);
 const char *token2str(token *);
+
+int check_builtin(int argc,char **argv);
 
 int interpret(FILE *file);
 

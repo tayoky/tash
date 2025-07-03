@@ -144,6 +144,13 @@ int interpret_expr(FILE *file,int *is_last){
 				destroy_token(tok);
 
 				continue;
+			case T_HASH:
+				while(tok->type != T_NEWLINE && tok->type != T_EOF){
+					destroy_token(tok);
+					tok = get_token(file);
+				}
+				putback = tok;
+				continue;
 			}
 			destroy_token(tok);
 

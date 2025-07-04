@@ -39,6 +39,10 @@ struct builtin {
 #define T_HASH        '#'
 #define T_DOLLAR      '$'
 
+extern int flags;
+#define TASH_LOGIN       (1 << 0)
+#define TASH_INTERACTIVE (1 << 1)
+
 #define arraylen(ar) (sizeof(ar)/sizeof(*ar))
 
 void error(const char *fmt,...);

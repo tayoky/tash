@@ -1,7 +1,7 @@
 #!/bin/sh
 cd test
 
-rm -f $(find -not -name "*.sh")
+rm -f $(find -not -name "*.sh" -type f)
 
 for TEST in $(ls) ; do
 	sh $TEST > $TEST-sh.out

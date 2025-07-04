@@ -24,6 +24,26 @@ static token *get_token(FILE *file){
 		str = realloc(str,len);\
 		strcat(str,s);
 
+char *parse_var(FILE *file){
+	token *tok = get_token(file);
+	char tmp[32];
+	switch(tok->type){
+	case T_DOLLAR:
+#ifdef __stanix__
+		sprintf(tmp,"%ld",getpid());
+#else
+		sprintf(tmp,"%d",getpid());
+#endif
+		return strdup(tmp);
+		break;
+	case T_STR:;
+		char *var = getvar(tok->value);
+		return strdup(var ? var : "");
+	default:
+		syntax_error(tok);
+	}
+}
+
 static char *get_string(FILE *file){
 	token *tok = get_token(file);
 	char *str = strdup("");
@@ -49,23 +69,36 @@ static char *get_string(FILE *file){
 		
 		}
 		break;
-	case T_DOLLAR:
-		destroy_token(tok);
-		tok = get_token(file);
-		char tmp[32];
-		switch(tok->type){
-		case T_DOLLAR:
-#ifdef __stanix__
-			sprintf(tmp,"%ld",getpid());
-#else
-			sprintf(tmp,"%d",getpid());
-#endif
-			append(tmp);
-			break;
-		case T_STR:
-			append(getvar(tok->value));
-			break;
+	case T_DQUOTE:
+		//continue until double colon again
+		for(;;){
+			destroy_token(tok);
+			tok = get_token(file);
+			if(tok->type == T_EOF){
+				syntax_error(tok);
+			}
+			if(tok->type == T_DQUOTE)break;
+			if(file == stdin && tok->type == T_NEWLINE)show_ps2();
+			switch(tok->type){
+			case T_DOLLAR:;
+				char *val = parse_var(file);
+				if(!val)syntax_error(tok);
+				append(val);
+				free(val);
+				continue;
+			}
+
+			const char *name = token2str(tok);
+			append(name);
+		
 		}
+		break;
+		break;
+	case T_DOLLAR:;
+		char *val = parse_var(file);
+		if(!val)syntax_error(tok);
+		append(val);
+		free(val);
 		break;
 	default:
 		goto end;

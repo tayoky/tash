@@ -17,6 +17,12 @@ int main(int argc,char **argv){
 	}
 
 	int i = 1;
+	int read_string = 0;
+	if(argc >= 2 && !strcmp(argv[1],"-c")){
+		read_string = 1;
+		i++;
+	}
+
 	for(;i<argc; i++){
 		if(argv[i][0] != '-')break;
 		char *opt = argv[i] + 1;
@@ -34,9 +40,6 @@ int main(int argc,char **argv){
 			case 'i':
 				flags |= TASH_INTERACTIVE;
 				break;
-			case 'c':
-				flags &= ~TASH_INTERACTIVE;
-				break;
 			default:
 				error("unknow option %c (see --help)",*opt);
 				return 1;
@@ -45,7 +48,7 @@ int main(int argc,char **argv){
 		}
 	}
 	//automatic detection of tty when no script is given
-	if(i == argc && isatty(STDIN_FILENO) == 1){
+	if(!read_string && i == argc && isatty(STDIN_FILENO) == 1){
 		flags |= TASH_INTERACTIVE;
 	}
 
@@ -54,6 +57,14 @@ int main(int argc,char **argv){
 		if(!strcmp(argv[i],"--version")){
 			printf("tash %s by tayoky\n",TASH_VERSION);
 			return 0;
+		}
+
+		if(read_string){
+			FILE *script = tmpfile();
+			fprintf(script,"%s\n",argv[i]);
+			i++;
+			rewind(script);
+			return interpret(script);
 		}
 		FILE *script = fopen(argv[i],"r");
 		if(!script){
@@ -65,5 +76,9 @@ int main(int argc,char **argv){
 		return ret;
 	}
 
+	if(read_string){
+		error("no command string specified");
+		return 1;
+	}
 	return interpret(stdin);
 }

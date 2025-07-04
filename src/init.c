@@ -3,11 +3,9 @@
 #include <stdlib.h>
 #include "tsh.h"
 
+//TODO: move this to a proper source builtin
 static void ex_script(const char *name){
-	//little hack we disable interactive so the prompt don't get showed durring sourcing
-	//we need proper prompt desactivation
-	int old_flags = flags;
-	flags &= ~TASH_INTERACTIVE;
+	flags |= TASH_NOPS;
 
 	char path[256];
 	snprintf(path,256,"/etc/%s",name);
@@ -26,7 +24,9 @@ static void ex_script(const char *name){
 		}
 	}
 
-	flags = old_flags;
+	if(flags & TASH_INTERACTIVE){
+		flags &= ~TASH_NOPS;
+	}
 }
 
 void init(int argc,char **argv){
@@ -36,6 +36,8 @@ void init(int argc,char **argv){
 		if(signal(SIGTTOU,SIG_IGN) == SIG_ERR){
 			perror("signal");
 		}
+	} else {
+		flags |= TASH_NOPS;
 	}
 
 	if(flags & TASH_LOGIN){

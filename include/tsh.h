@@ -42,6 +42,7 @@ struct builtin {
 extern int flags;
 #define TASH_LOGIN       (1 << 0)
 #define TASH_INTERACTIVE (1 << 1)
+#define TASH_NOPS        (1 << 2)
 
 #define arraylen(ar) (sizeof(ar)/sizeof(*ar))
 

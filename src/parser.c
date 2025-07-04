@@ -76,7 +76,7 @@ static char *get_string(FILE *file){
 				syntax_error(tok);
 			}
 			if(tok->type == T_QUOTE)break;
-			if((flags & TASH_INTERACTIVE) && tok->type == T_NEWLINE)show_ps2();
+			if(!(flags & TASH_NOPS) && tok->type == T_NEWLINE)show_ps2();
 			const char *name = token2str(tok);
 			append(name);
 		
@@ -91,7 +91,7 @@ static char *get_string(FILE *file){
 				syntax_error(tok);
 			}
 			if(tok->type == T_DQUOTE)break;
-			if((flags & TASH_INTERACTIVE) && tok->type == T_NEWLINE)show_ps2();
+			if(!(flags & TASH_NOPS) && tok->type == T_NEWLINE)show_ps2();
 			switch(tok->type){
 			case T_DOLLAR:;
 				char *val = parse_var(file);
@@ -247,14 +247,14 @@ finish:
 
 		if(setpgid(child,child) < 0){
 			perror("setpgid");
-		} else if((flags & TASH_INTERACTIVE) && tcsetpgrp(STDIN_FILENO,child) < 0){
+		} else if(!(flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,child) < 0){
 			perror("tcsetpgrp");
 		}
 		if(waitpid(child,&status,0) < 0){
 			perror("waitpid");
 			return 1;
 		}
-		if((flags & TASH_INTERACTIVE) && tcsetpgrp(STDIN_FILENO,getpid()) < 0){
+		if(!(flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,getpid()) < 0){
 			perror("tcsetpgrp");
 		}
 		}
@@ -278,7 +278,7 @@ int interpret_line(FILE *file){
 
 int interpret(FILE *file){
 	for(;;){
-		if(flags & TASH_INTERACTIVE){
+		if(!(flags & TASH_NOPS)){
 			show_ps1();
 		}
 		token *tok = get_token(file);

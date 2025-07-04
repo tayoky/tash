@@ -257,6 +257,9 @@ finish:
 		if(!(flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,getpid()) < 0){
 			perror("tcsetpgrp");
 		}
+		if(WIFSIGNALED(status)){
+			printf("terminated on %s\n",strsignal(WTERMSIG(status)));
+		}
 		}
 	}
 

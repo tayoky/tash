@@ -29,6 +29,7 @@ char *parse_var(FILE *file){
 	char tmp[32];
 	switch(tok->type){
 	case T_DOLLAR:
+		destroy_token(tok);
 #ifdef __stanix__
 		sprintf(tmp,"%ld",getpid());
 #else
@@ -38,7 +39,19 @@ char *parse_var(FILE *file){
 		break;
 	case T_STR:;
 		char *var = getvar(tok->value);
+		destroy_token(tok);
 		return strdup(var ? var : "");
+	case T_OPEN_BRACK:
+		destroy_token(tok);
+		tok = get_token(file);
+		if(tok->type != T_STR)syntax_error(tok);
+		char *val = getvar(tok->value);
+		destroy_token(tok);
+		tok = get_token(file);
+		if(tok->type != T_CLOSE_BRACK)syntax_error(tok);
+		destroy_token(tok);
+		return strdup(val ? val: "");
+
 	default:
 		syntax_error(tok);
 	}

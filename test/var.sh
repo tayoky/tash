@@ -2,3 +2,4 @@
 
 echo path is $PATH
 echo 'home is '$HOME
+echo PATH is ${PATH}

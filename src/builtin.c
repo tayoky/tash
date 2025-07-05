@@ -21,6 +21,38 @@ int exit_cmd(int argc,char **argv){
 	exit(0);
 }
 
+int export(int argc,char **argv){
+	int i = 1;
+	if(argc < 2 || !strcmp(argv[1],"-p")){
+		char ** e = environ;
+		while(*e){
+			puts(*e);
+			e++;
+		}
+		return 0;
+	}
+
+	int ret = 0;
+	while(i < argc){
+		if(strchr(argv[i],'=')){
+			//TODO : remove from local/export if already exist ?
+			putenv(argv[i]);
+		} else {
+			if(!getenv(argv[i])){
+				char *val = getvar(argv[i]);
+				if(val){
+					//TODO : remove from local ?
+					putenv(val);
+				} else {
+					ret = 1;
+				}
+			}
+		}
+		i++;
+	}
+	return ret;
+}
+
 int cd(int argc,char **argv){
 	if(argc > 2){
 		error("cd :too many arguments");
@@ -50,6 +82,7 @@ int cd(int argc,char **argv){
 static struct builtin builtin[] = {
 	CMD("cd",cd),
 	CMD("exit",exit_cmd),
+	CMD("export",export),
 };
 
 int check_builtin(int argc,char **argv){

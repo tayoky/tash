@@ -139,7 +139,7 @@ static void skip_space(FILE *file){
 	putback = tok;
 }
 
-int interpret_expr(FILE *file,int *is_last){
+int interpret_expr(FILE *file,int *is_last,int *syntax_error){
 	*is_last = 0;
 	int argc = 0;
 	char **argv = malloc(0);
@@ -254,8 +254,8 @@ finish:
 			perror("waitpid");
 			return 1;
 		}
-		if(!(flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,getpid()) < 0){
-			perror("tcsetpgrp");
+		if(!(flags & TASH_NOPS) && (signal(SIGTTOU,SIG_IGN) == SIG_ERR || tcsetpgrp(STDIN_FILENO,getpid()) < 0 || signal(SIGTTOU,SIG_DFL) == SIG_ERR)){
+			perror("tcsetpgrp"); 
 		}
 		if(WIFSIGNALED(status)){
 			printf("terminated on %s\n",strsignal(WTERMSIG(status)));
@@ -274,7 +274,8 @@ int interpret_line(FILE *file){
 	int is_last = 0;
 	int status;
 	while(!is_last){
-		status = interpret_expr(file,&is_last);
+		int syntax_error = 0;
+		status = interpret_expr(file,&is_last,&syntax_error);
 	}
 	return status;
 }

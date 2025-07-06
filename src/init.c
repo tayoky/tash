@@ -31,12 +31,7 @@ static void ex_script(const char *name){
 
 void init(int argc,char **argv){
 	(void)argc,(void)argv;
-	if(flags & TASH_INTERACTIVE){
-		//setup signal control
-		if(signal(SIGTTOU,SIG_IGN) == SIG_ERR){
-			perror("signal");
-		}
-	} else {
+	if(!(flags & TASH_INTERACTIVE)){
 		flags |= TASH_NOPS;
 	}
 

@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include "tsh.h"
 
+extern char **environ;
+
 int exit_cmd(int argc,char **argv){
 	if(argc > 2){
 		error("exit : too many arguments");

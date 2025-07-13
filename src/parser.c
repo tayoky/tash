@@ -10,7 +10,7 @@
 
 token *putback = NULL;
 
-#define syntax_error(tok) {error("syntax error near token %s",token_name(tok));destroy_token(tok);return 0;}
+#define syntax_error(tok) {flags|=TASH_IGN_NL;error("syntax error near token %s",token_name(tok));putback = tok;return 0;}
 
 static token *get_token(FILE *file){
 	if(putback){
@@ -140,7 +140,7 @@ static void skip_space(FILE *file){
 	putback = tok;
 }
 
-int interpret_expr(FILE *file,int *is_last,int *syntax_error){
+int interpret_expr(FILE *file,int *is_last){
 	*is_last = 0;
 	int argc = 0;
 	char **argv = malloc(0);
@@ -157,9 +157,21 @@ int interpret_expr(FILE *file,int *is_last,int *syntax_error){
 				if(!argc)syntax_error(tok);
 				destroy_token(tok);
 				goto finish;
+			case T_EOF:
+				*is_last = 1;
+				destroy_token(tok);
+				if((flags & TASH_IGN_NL) || (flags & TASH_IGN_EOF)){
+					flags &= ~(TASH_IGN_NL | TASH_IGN_EOF);
+					goto ret;
+				}
+				goto finish;
 			case T_NEWLINE:
 				*is_last = 1;
 				destroy_token(tok);
+				if(flags & TASH_IGN_NL){
+					flags &= ~TASH_IGN_NL;
+					goto ret;
+				}
 				goto finish;
 			case T_SUPERIOR:
 			case T_APPEND:
@@ -209,6 +221,15 @@ int interpret_expr(FILE *file,int *is_last,int *syntax_error){
 finish:
 	argv = realloc(argv,sizeof(char *) * (argc + 1));
 	argv[argc] = NULL;
+
+	if((flags & TASH_IGN_NL) || (flags & TASH_IGN_EOF)){
+ret:
+		for(int i=0;i<argc;i++){
+			free(argv[i]);
+		}
+		free(argv);
+		return 0;
+	}
 
 	int status;
 	if(argc > 0){
@@ -275,8 +296,7 @@ int interpret_line(FILE *file){
 	int is_last = 0;
 	int status;
 	while(!is_last){
-		int syntax_error = 0;
-		status = interpret_expr(file,&is_last,&syntax_error);
+		status = interpret_expr(file,&is_last);
 	}
 	return status;
 }

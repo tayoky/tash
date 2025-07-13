@@ -100,6 +100,12 @@ static char *get_string(FILE *file){
 				append(val);
 				free(val);
 				continue;
+			case T_BACKSLASH:
+				destroy_token(tok);
+				tok = get_token(file);
+				if(tok->type == T_EOF)syntax_error(tok);
+				append(token2str(tok));
+				continue;
 			}
 
 			const char *name = token2str(tok);
@@ -113,6 +119,13 @@ static char *get_string(FILE *file){
 		if(!val)syntax_error(tok);
 		append(val);
 		free(val);
+		break;
+	case T_BACKSLASH:
+		destroy_token(tok);
+		tok = get_token(file);
+		if(tok->type == T_EOF)syntax_error(tok);
+		if(tok->type == T_NEWLINE)break;
+		append(token2str(tok));
 		break;
 	default:
 		goto end;

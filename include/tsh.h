@@ -38,6 +38,7 @@ struct builtin {
 #define T_NEWLINE     '\n'
 #define T_HASH        '#'
 #define T_DOLLAR      '$'
+#define T_BACKSLASH   '\\'
 
 extern int flags;
 #define TASH_LOGIN       (1 << 0)

@@ -1,0 +1,2 @@
+# test pipes
+ls .. | cat

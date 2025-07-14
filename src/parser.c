@@ -8,6 +8,13 @@
 #include <sys/stat.h>
 #include "tsh.h"
 
+struct cmd {
+	int argc;
+	char **argv;
+	int in;
+	int out;
+};
+
 token *putback = NULL;
 
 int exit_status ;
@@ -179,10 +186,9 @@ static void skip_space(FILE *file){
 
 int interpret_expr(FILE *file,int *is_last){
 	*is_last = 0;
-	int argc = 0;
-	char **argv = malloc(0);
-	int in = 0;
-	int out = 0;
+	int cmdc = 1;
+	struct cmd *cmdv = malloc(sizeof(struct cmd));
+	memset(cmdv,0,sizeof(struct cmd));
 	for(;;){
 		skip_space(file);
 		char *arg = get_string(file);
@@ -191,7 +197,9 @@ int interpret_expr(FILE *file,int *is_last){
 			token *tok = get_token(file);
 			switch(tok->type){
 			case T_SEMI_COLON:
-				if(!argc)syntax_error(tok);
+				//todo : check somthing else 
+				//to allow empty command with redir
+				if(!cmdv[cmdc-1].argc)syntax_error(tok);
 				destroy_token(tok);
 				goto finish;
 			case T_EOF:
@@ -211,13 +219,13 @@ int interpret_expr(FILE *file,int *is_last){
 				}
 				goto finish;
 			case T_INFERIOR:
-				if(in)close(in);
+				if(cmdv[cmdc-1].in)close(cmdv[cmdc-1].in);
 				destroy_token(tok);
 				skip_space(file);
 				tok = get_token(file);
 				if(tok->type != T_STR)syntax_error(tok);
-				in = open(tok->value,O_RDONLY);
-				if(in < 0){
+				cmdv[cmdc-1].in = open(tok->value,O_RDONLY);
+				if(cmdv[cmdc-1].in < 0){
 					exit_status = 1;
 					perror(tok->value);
 					flags |= TASH_IGN_NL;
@@ -227,14 +235,14 @@ int interpret_expr(FILE *file,int *is_last){
 				continue;
 			case T_SUPERIOR:
 			case T_APPEND:
-				if(out)close(out);
+				if(cmdv[cmdc-1].out)close(cmdv[cmdc-1].out);
 				int oflags = tok->type == T_APPEND ? O_APPEND : O_TRUNC;
 				destroy_token(tok);
 				skip_space(file);
 				tok = get_token(file);
 				if(tok->type != T_STR)syntax_error(tok);
-				out = open(tok->value,O_WRONLY | O_CREAT | oflags,S_IWUSR | S_IRUSR);
-				if(out < 0){
+				cmdv[cmdc-1].out = open(tok->value,O_WRONLY | O_CREAT | oflags,S_IWUSR | S_IRUSR);
+				if(cmdv[cmdc-1].out < 0){
 					perror(tok->value);
 					return 0;
 				}
@@ -248,102 +256,146 @@ int interpret_expr(FILE *file,int *is_last){
 				}
 				putback = tok;
 				continue;
+			case T_PIPE:
+				if(cmdv[cmdc-1].argc <= 0)syntax_error(tok);
+				destroy_token(tok);
+				//finish old command
+				cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * (cmdv[cmdc-1].argc + 1));
+				cmdv[cmdc-1].argv[cmdv[cmdc-1].argc]= NULL;
+				//and createa new one
+				cmdc++;
+				cmdv = realloc(cmdv,cmdc * sizeof(struct cmd));
+				memset(&cmdv[cmdc-1],0,sizeof(struct cmd));
+				int pipefd[2];
+				if(pipe(pipefd) < 0){
+					perror("pipe");
+				} else {
+					if(cmdv[cmdc-2].out){
+						close(pipefd[1]);
+					} else {
+						cmdv[cmdc-2].out = pipefd[1];
+					}
+					cmdv[cmdc-1].in = pipefd[0];
+				}
+				continue;
 			}
 			destroy_token(tok);
 
 		}
-		argc++;
-		argv = realloc(argv,sizeof(char *) * argc);
-		argv[argc-1] = arg;
+		cmdv[cmdc-1].argc++;
+		cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * cmdv[cmdc-1].argc);
+		cmdv[cmdc-1].argv[cmdv[cmdc-1].argc-1] = arg;
 	}
 finish:
-	argv = realloc(argv,sizeof(char *) * (argc + 1));
-	argv[argc] = NULL;
+	cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * (cmdv[cmdc-1].argc + 1));
+	cmdv[cmdc-1].argv[cmdv[cmdc-1].argc]= NULL;
 
 	if((flags & TASH_IGN_NL) || (flags & TASH_IGN_EOF)){
 ret:
-		for(int i=0;i<argc;i++){
-			free(argv[i]);
+		for(int i=0;i<cmdc;i++){
+			for(int j=0;j<cmdv[i].argc;j++){
+				free(cmdv[i].argv[j]);
+			}
+			if(cmdv[i].out)close(cmdv[i].out);
+			if(cmdv[i].in)close(cmdv[i].in);
 		}
-		free(argv);
+		free(cmdv);
 		return 0;
 	}
 
-	if(argc > 0){
+	int to_wait = 0;
+	pid_t leader = 0;
+	for(int k=0;k<cmdc;k++){
+		if(cmdv[k].argc <= 0)continue;
+
 		//check for variable asignement
-		if(argc == 1 && strchr(argv[0],'=')){
+		if(cmdv[k].argc == 1 && strchr(cmdv[k].argv[0],'=')){
 			//TODO : pretty sure this isen't posix compliant
-			putvar(argv[0]);
+			putvar(cmdv[k].argv[0]);
 			goto ret;
 		}
-		exit_status = check_builtin(argc,argv);
+		exit_status = check_builtin(cmdv[k].argc,cmdv[k].argv);
 		//-1 mean no builtin
-		if(exit_status == -1){
+		if(exit_status != -1)continue;
 		pid_t child = fork();
 		if(!child){
-			if(out){
-				if(dup2(out,STDOUT_FILENO) < 0){
+			if(cmdv[k].out){
+				if(dup2(cmdv[k].out,STDOUT_FILENO) < 0){
 					perror("dup2");
 				}
-				close(out);
 			}
-			if(in){
-				if(dup2(in,STDIN_FILENO) < 0){
+			if(cmdv[k].in){
+				if(dup2(cmdv[k].in,STDIN_FILENO) < 0){
 					perror("dup2");
 				}
-				close(in);
 			}
 
 			//putenv if needed
 			int i=0;
-			while(strchr(argv[i],'=')){
-				putenv(argv[i]);
+			while(strchr(cmdv[k].argv[i],'=')){
+				putenv(cmdv[k].argv[i]);
 				i++;
-				if(i==argc){
+				if(i==cmdv[k].argc){
 					//TODO : handle this before executing command
 					i--;
 					break;
 				}
 			}
-			execvp(argv[i],argv);
-			perror(argv[i]);
+
+			//close all fd as they aren't needed anymore
+
+			for(int i=0;i<cmdc;i++){
+				if(cmdv[i].out)close(cmdv[i].out);
+				if(cmdv[i].in)close(cmdv[i].in);
+			}
+			execvp(cmdv[k].argv[i],cmdv[k].argv);
+			perror(cmdv[k].argv[i]);
 			exit_status = 127;
-			exit(EXIT_FAILURE);
+			_Exit(EXIT_FAILURE);
 		}
-		for(int i=0;i<argc;i++){
-			free(argv[i]);
-		}
-
-		if(out)close(out);
-		if(in)close(in);
-
-		exit_status = 2;
-
 		if(child < 0){
 			perror("fork");
-			return 1;
+			goto ret;
 		}
+		if(!leader)leader = child;
 
-		if(setpgid(child,child) < 0){
+
+		if(setpgid(child,leader) < 0){
 			perror("setpgid");
-		} else if(!(flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,child) < 0){
-			perror("tcsetpgrp");
 		}
-		if(waitpid(child,&exit_status,0) < 0){
-			perror("waitpid");
-			return 1;
-		}
-		if(!(flags & TASH_NOPS) && (signal(SIGTTOU,SIG_IGN) == SIG_ERR || tcsetpgrp(STDIN_FILENO,getpid()) < 0 || signal(SIGTTOU,SIG_DFL) == SIG_ERR)){
-			perror("tcsetpgrp"); 
-		}
-		if(WIFSIGNALED(exit_status)){
-			printf("terminated on %s\n",strsignal(WTERMSIG(exit_status)));
-		}
-		}
+		to_wait++;
+		
+	}
+	exit_status = 2;
+
+	//a bit of cleanup so pipes get closed
+	for(int i=0;i<cmdc;i++){
+		if(cmdv[i].out)close(cmdv[i].out);
+		if(cmdv[i].in)close(cmdv[i].in);
+		cmdv[i].in = 0;
+		cmdv[i].out = 0;
 	}
 
-	free(argv);
-	return 0;
+	if(!to_wait)goto ret;
+
+	if(!(flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,leader) < 0){
+		perror("tcsetpgrp");
+	}
+	for(int i=0; i<to_wait; i++){
+		if(wait(&exit_status) < 0){
+			perror("wait");
+			exit_status = 2;
+			goto ret;
+		}
+	}
+	if(!(flags & TASH_NOPS) && (signal(SIGTTOU,SIG_IGN) == SIG_ERR || tcsetpgrp(STDIN_FILENO,getpid()) < 0 || signal(SIGTTOU,SIG_DFL) == SIG_ERR)){
+		perror("tcsetpgrp"); 
+	}
+	if(WIFSIGNALED(exit_status)){
+		printf("terminated on %s\n",strsignal(WTERMSIG(exit_status)));
+	}
+
+	goto ret;
 }
 
 void interpret_line(FILE *file){

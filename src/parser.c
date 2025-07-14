@@ -116,7 +116,7 @@ static char *get_string(FILE *file){
 		break;
 	case T_DOLLAR:;
 		char *val = parse_var(file);
-		if(!val)syntax_error(tok);
+		if(!val)break;
 		append(val);
 		free(val);
 		break;

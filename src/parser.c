@@ -10,7 +10,13 @@
 
 token *putback = NULL;
 
-#define syntax_error(tok) {flags|=TASH_IGN_NL;error("syntax error near token %s",token_name(tok));putback = tok;return 0;}
+#define syntax_error(tok) {flags|=TASH_IGN_NL;error("syntax error near token %s",token_name(tok));\
+	if(tok->type == T_NEWLINE || tok->type == T_EOF){\
+		putback = tok;\
+	} else {\
+		destroy_token(tok);\
+	}\
+	return 0;}
 
 static token *get_token(FILE *file){
 	if(putback){

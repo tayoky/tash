@@ -12,7 +12,8 @@ token *putback = NULL;
 
 int exit_status ;
 
-#define syntax_error(tok) {flags|=TASH_IGN_NL;error("syntax error near token %s",token_name(tok));\
+#define syntax_error(tok) {flags|=TASH_IGN_NL;\
+	error("syntax error near token %s",token_name(tok));\
 	if(tok->type == T_NEWLINE || tok->type == T_EOF){\
 		putback = tok;\
 	} else {\
@@ -227,12 +228,12 @@ int interpret_expr(FILE *file,int *is_last){
 			case T_SUPERIOR:
 			case T_APPEND:
 				if(out)close(out);
-				int flags = tok->type == T_APPEND ? O_APPEND : O_TRUNC;
+				int oflags = tok->type == T_APPEND ? O_APPEND : O_TRUNC;
 				destroy_token(tok);
 				skip_space(file);
 				tok = get_token(file);
 				if(tok->type != T_STR)syntax_error(tok);
-				out = open(tok->value,O_WRONLY | O_CREAT | flags,S_IWUSR | S_IRUSR);
+				out = open(tok->value,O_WRONLY | O_CREAT | oflags,S_IWUSR | S_IRUSR);
 				if(out < 0){
 					perror(tok->value);
 					return 0;

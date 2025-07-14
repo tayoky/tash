@@ -252,7 +252,12 @@ ret:
 
 	int status;
 	if(argc > 0){
-		//first check for builtin
+		//check for variable asignement
+		if(strchr(argv[0],'=')){
+			//TODO : pretty sure this isen't posix compliant
+			putvar(argv[0]);
+			goto ret;
+		}
 		status = check_builtin(argc,argv);
 		//-1 mean no builtin
 		if(status == -1){

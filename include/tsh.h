@@ -63,7 +63,9 @@ int interpret(FILE *file);
 void show_ps1(void);
 void show_ps2(void);
 
+void init_var(void);
 char *getvar(const char *name);
+void *putvar(const char *var);
 
 void init(int argc,char **argv);
 

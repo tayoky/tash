@@ -31,6 +31,7 @@ static void ex_script(const char *name){
 
 void init(int argc,char **argv){
 	(void)argc,(void)argv;
+	init_var();
 	if(!(flags & TASH_INTERACTIVE)){
 		flags |= TASH_NOPS;
 	}

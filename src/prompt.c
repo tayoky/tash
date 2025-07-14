@@ -67,8 +67,16 @@ static void show_prompt(const char *ps){
 			case 'v':
 				fputs(TASH_VERSION,stdout);
 				break;
+			case 'W':
 			case 'w':
 				show_cwd();
+				break;
+			case 'h':
+				printf("host");
+				break;
+			case 'u':
+				if(getenv("LOGNAME"))printf("%s",getenv("LOGNAME"));
+				printf("user");
 				break;
 			case '$':
 				putchar(geteuid() == 0 ? '#' : '$');
@@ -80,6 +88,8 @@ static void show_prompt(const char *ps){
 		putchar(*ps);
 		ps++;
 	}
+
+	fflush(stdout);
 }
 
 void show_ps1(void){

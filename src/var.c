@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdint.h>
 #include "tsh.h"
 
 static char **var = NULL;

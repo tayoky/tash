@@ -10,12 +10,15 @@
 
 token *putback = NULL;
 
+int exit_status ;
+
 #define syntax_error(tok) {flags|=TASH_IGN_NL;error("syntax error near token %s",token_name(tok));\
 	if(tok->type == T_NEWLINE || tok->type == T_EOF){\
 		putback = tok;\
 	} else {\
 		destroy_token(tok);\
 	}\
+	exit_status = 2;\
 	return 0;}
 
 static token *get_token(FILE *file){
@@ -206,6 +209,21 @@ int interpret_expr(FILE *file,int *is_last){
 					goto ret;
 				}
 				goto finish;
+			case T_INFERIOR:
+				if(in)close(in);
+				destroy_token(tok);
+				skip_space(file);
+				tok = get_token(file);
+				if(tok->type != T_STR)syntax_error(tok);
+				in = open(tok->value,O_RDONLY);
+				if(in < 0){
+					exit_status = 1;
+					perror(tok->value);
+					flags |= TASH_IGN_NL;
+				}
+				destroy_token(tok);
+
+				continue;
 			case T_SUPERIOR:
 			case T_APPEND:
 				if(out)close(out);
@@ -216,20 +234,6 @@ int interpret_expr(FILE *file,int *is_last){
 				if(tok->type != T_STR)syntax_error(tok);
 				out = open(tok->value,O_WRONLY | O_CREAT | flags,S_IWUSR | S_IRUSR);
 				if(out < 0){
-					perror(tok->value);
-					return 0;
-				}
-				destroy_token(tok);
-
-				continue;
-			case T_INFERIOR:
-				if(in)close(in);
-				destroy_token(tok);
-				skip_space(file);
-				tok = get_token(file);
-				if(tok->type != T_STR)syntax_error(tok);
-				in = open(tok->value,O_RDONLY);
-				if(in < 0){
 					perror(tok->value);
 					return 0;
 				}
@@ -264,7 +268,6 @@ ret:
 		return 0;
 	}
 
-	int status;
 	if(argc > 0){
 		//check for variable asignement
 		if(argc == 1 && strchr(argv[0],'=')){
@@ -272,9 +275,9 @@ ret:
 			putvar(argv[0]);
 			goto ret;
 		}
-		status = check_builtin(argc,argv);
+		exit_status = check_builtin(argc,argv);
 		//-1 mean no builtin
-		if(status == -1){
+		if(exit_status == -1){
 		pid_t child = fork();
 		if(!child){
 			if(out){
@@ -303,6 +306,7 @@ ret:
 			}
 			execvp(argv[i],argv);
 			perror(argv[i]);
+			exit_status = 127;
 			exit(EXIT_FAILURE);
 		}
 		for(int i=0;i<argc;i++){
@@ -311,6 +315,8 @@ ret:
 
 		if(out)close(out);
 		if(in)close(in);
+
+		exit_status = 2;
 
 		if(child < 0){
 			perror("fork");
@@ -322,33 +328,30 @@ ret:
 		} else if(!(flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,child) < 0){
 			perror("tcsetpgrp");
 		}
-		if(waitpid(child,&status,0) < 0){
+		if(waitpid(child,&exit_status,0) < 0){
 			perror("waitpid");
 			return 1;
 		}
 		if(!(flags & TASH_NOPS) && (signal(SIGTTOU,SIG_IGN) == SIG_ERR || tcsetpgrp(STDIN_FILENO,getpid()) < 0 || signal(SIGTTOU,SIG_DFL) == SIG_ERR)){
 			perror("tcsetpgrp"); 
 		}
-		if(WIFSIGNALED(status)){
-			printf("terminated on %s\n",strsignal(WTERMSIG(status)));
+		if(WIFSIGNALED(exit_status)){
+			printf("terminated on %s\n",strsignal(WTERMSIG(exit_status)));
 		}
 		}
 	}
 
 	free(argv);
-
 	return 0;
 }
 
-int interpret_line(FILE *file){
+void interpret_line(FILE *file){
 	//if is_last is set
 	//that mean that was the expr of the line
 	int is_last = 0;
-	int status;
 	while(!is_last){
-		status = interpret_expr(file,&is_last);
+		interpret_expr(file,&is_last);
 	}
-	return status;
 }
 
 int interpret(FILE *file){

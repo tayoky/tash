@@ -253,7 +253,7 @@ ret:
 	int status;
 	if(argc > 0){
 		//check for variable asignement
-		if(strchr(argv[0],'=')){
+		if(argc == 1 && strchr(argv[0],'=')){
 			//TODO : pretty sure this isen't posix compliant
 			putvar(argv[0]);
 			goto ret;
@@ -275,8 +275,20 @@ ret:
 				}
 				close(in);
 			}
-			execvp(argv[0],argv);
-			perror(argv[0]);
+
+			//putenv if needed
+			int i=0;
+			while(strchr(argv[i],'=')){
+				putenv(argv[i]);
+				i++;
+				if(i==argc){
+					//TODO : handle this before executing command
+					i--;
+					break;
+				}
+			}
+			execvp(argv[i],argv);
+			perror(argv[i]);
 			exit(EXIT_FAILURE);
 		}
 		for(int i=0;i<argc;i++){

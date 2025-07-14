@@ -51,12 +51,26 @@ char *parse_var(FILE *file){
 	case T_OPEN_BRACK:
 		destroy_token(tok);
 		tok = get_token(file);
+		int len = 0;
+		switch(tok->type){
+		case T_HASH:
+			len = 1;
+			destroy_token(tok);
+			tok = get_token(file);
+			break;
+		default:
+			break;
+		}
 		if(tok->type != T_STR)syntax_error(tok);
 		char *val = getvar(tok->value);
 		destroy_token(tok);
 		tok = get_token(file);
 		if(tok->type != T_CLOSE_BRACK)syntax_error(tok);
 		destroy_token(tok);
+		if(len){
+			sprintf(tmp,"%zd",val ? strlen(val) : 0);
+			return strdup(tmp);
+		}
 		return strdup(val ? val: "");
 
 	default:

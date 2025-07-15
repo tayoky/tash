@@ -164,7 +164,7 @@ int prompt_getc(void){
 	for(;;){
 		int c = getchar();
 		switch(c){
-		case '\033':
+		case '\033':;
 			int c1 = getchar();
 			if(c1 != '['){
 				ungetc(c1,stdin);
@@ -194,7 +194,7 @@ int prompt_getc(void){
 			//TODO : auto completion
 			//find the start and end of current arg
 			int search_command = 0;
-			int start = prompt_cursor;
+			int start = prompt_cursor > 0 ? prompt_cursor - 1 : 0;
 			while(start > 0 && !isblank(prompt_buf[start])){
 				start--;
 			}
@@ -232,6 +232,11 @@ int prompt_getc(void){
 			}
 
 			if(fill){
+				if(!strncmp("./",fill,2)){
+					char *simp = strdup(fill+2);
+					free(fill);
+					fill = simp;
+				}
 				memmove(&prompt_buf[start + strlen(fill)],&prompt_buf[start + end],prompt_len - (end - start));
 				prompt_len += strlen(fill) - (end - start);
 				strcpy(&prompt_buf[start],fill);

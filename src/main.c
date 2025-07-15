@@ -11,6 +11,18 @@ char **_argv;
 	continue;\
 }
 
+int buf_getc(unsigned char **buf){
+	int c = **buf;
+	if(!c)return EOF;
+	(*buf)++;
+	return c;
+}
+
+void buf_unget(int c,char **buf){
+	if(c == EOF)return;
+	(*buf)--;
+}
+
 int main(int argc,char **argv){
 	//parse args and set flags
 	flags = 0 ;
@@ -24,7 +36,7 @@ int main(int argc,char **argv){
 	int i = 1;
 
 	for(;i<argc; i++){
-		if(argv[i][0] != '-')break;
+		if(argv[i][0] != '-' || argv[i][1] == 'c')break;
 		char *opt = argv[i] + 1;
 		if(*opt == '-'){
 			opt++;
@@ -54,11 +66,13 @@ int main(int argc,char **argv){
 			return 1;
 		}
 		init();
-		FILE *script = tmpfile();
-		fprintf(script,"%s\n",argv[i]);
-		i++;
-		rewind(script);
-		return interpret(script);
+		source src = {
+			.data = &argv[i+1],
+			.getc = (void*)buf_getc,
+			.unget = (void *)buf_unget,
+		};
+		
+		return interpret(&src);
 	} else if(argc - i >= 1){
 		//shell launched with script or option
 		if(!strcmp(argv[i],"--version")){
@@ -74,7 +88,8 @@ int main(int argc,char **argv){
 			perror(argv[i]);
 			return 1;
 		}
-		int ret = interpret(script);
+		source src = SRC_FILE(script);
+		int ret = interpret(&src);
 		fclose(script);
 		return ret;
 	} else {
@@ -83,6 +98,7 @@ int main(int argc,char **argv){
 			flags |= TASH_INTERACTIVE;
 		}
 		init();
-		return interpret(stdin);
+		source src = SRC_FILE(stdin);
+		return interpret(&src);
 	}
 }

@@ -17,6 +17,12 @@ struct builtin {
 	int lock_bypass;
 };
 
+typedef struct source {
+	void *data;
+	int (*getc)(void *);
+	int (*unget)(int,void *);
+} source;
+
 #define T_NULL          0
 #define T_STR           1
 #define T_AND           2
@@ -54,14 +60,14 @@ extern int flags;
 
 void error(const char *fmt,...);
 
-token *next_token(FILE *file);
+token *next_token(source *src);
 void destroy_token(token *);
 const char *token_name(token *);
 const char *token2str(token *);
 
 int check_builtin(int argc,char **argv);
 
-int interpret(FILE *file);
+int interpret(source *src);
 
 void show_ps1(void);
 void show_ps2(void);
@@ -75,5 +81,9 @@ void init();
 // cute custom perror
 #undef perror
 #define perror(str) error("%s : %s",str,strerror(errno))
+
+#define SRC_FILE(file) {.data = file,\
+	.getc  = (void *)fgetc,\
+	.unget = (void *)ungetc,}
 
 #endif

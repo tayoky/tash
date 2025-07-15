@@ -70,8 +70,8 @@ const char *token_name(token *t){
 	return "<unknow>";
 }
 
-static int get_operator(FILE *file){
-	int c = fgetc(file);
+static int get_operator(source *src){
+	int c = src->getc(src->data);
 	int best_match = -1;
 	size_t size = 1;
 	char str[8];
@@ -83,7 +83,7 @@ static int get_operator(FILE *file){
 			//if we find a \n no token as anything after a \n
 			//so we can return
 			if(c == '\n')return i;
-			c = fgetc(file);
+			c = src->getc(src->data);
 			if(c == EOF)return i;
 			str[size] = c;
 			size++;
@@ -92,17 +92,17 @@ static int get_operator(FILE *file){
 		}
 	}
 
-	ungetc(c,file);
+	src->unget(c,src->data);
 	return best_match;
 }
 
 
-token *next_token(FILE *file){
+token *next_token(source *src){
 	token *new = malloc(sizeof(token));
 	memset(new,0,sizeof(token));
 
 	//if aready at the end return EOF
-	int c = fgetc(file);
+	int c = src->getc(src->data);
 	if(c == EOF){
 		new->type = T_EOF;
 		return new;
@@ -119,22 +119,22 @@ token *next_token(FILE *file){
 			new->value = realloc(new->value,size);
 			new->value[size-2] = c;
 			new->value[size-1] = '\0';
-			c = fgetc(file);
+			c = src->getc(src->data);
 		}
 
-		ungetc(c,file);
+		src->unget(c,src->data);
 		return new;
 	} else {
-		ungetc(c,file);
+		src->unget(c,src->data);
 	}
 
-	int op = get_operator(file);
+	int op = get_operator(src);
 	if(op < 0){
 		new->type = T_STR;
 		new->value = strdup("");
 		size_t size = 1;
 		int c;
-		while((c = fgetc(file)) != EOF){
+		while((c = src->getc(src->data)) != EOF){
 			if(isblank(c))b: break;
 			//check if we are at the start of a new op
 			for(size_t i=0; i<arraylen(operators); i++){
@@ -145,7 +145,7 @@ token *next_token(FILE *file){
 			new->value[size-2] = c;
 			new->value[size-1] = '\0';
 		}
-		ungetc(c,file);
+		src->unget(c,src->data);
 	} else {
 		new->type = operators[op].type;
 	}

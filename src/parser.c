@@ -29,21 +29,21 @@ int exit_status ;
 	exit_status = 2;\
 	return 0;}
 
-static token *get_token(FILE *file){
+static token *get_token(source *src){
 	if(putback){
 		token *tok = putback;
 		putback = NULL;
 		return tok;
 	}
-	return next_token(file);
+	return next_token(src);
 }
 
 #define append(s) len += strlen(s);\
 		str = realloc(str,len);\
 		strcat(str,s);
 
-char *parse_var(FILE *file){
-	token *tok = get_token(file);
+char *parse_var(source *src){
+	token *tok = get_token(src);
 	char tmp[32];
 	switch(tok->type){
 	case T_DOLLAR:
@@ -67,13 +67,13 @@ char *parse_var(FILE *file){
 		return strdup(tmp);
 	case T_OPEN_BRACK:
 		destroy_token(tok);
-		tok = get_token(file);
+		tok = get_token(src);
 		int len = 0;
 		switch(tok->type){
 		case T_HASH:
 			len = 1;
 			destroy_token(tok);
-			tok = get_token(file);
+			tok = get_token(src);
 			break;
 		default:
 			break;
@@ -81,7 +81,7 @@ char *parse_var(FILE *file){
 		if(tok->type != T_STR)syntax_error(tok);
 		char *val = getvar(tok->value);
 		destroy_token(tok);
-		tok = get_token(file);
+		tok = get_token(src);
 		if(tok->type != T_CLOSE_BRACK)syntax_error(tok);
 		destroy_token(tok);
 		if(len){
@@ -95,8 +95,8 @@ char *parse_var(FILE *file){
 	}
 }
 
-static char *get_string(FILE *file){
-	token *tok = get_token(file);
+static char *get_string(source *src){
+	token *tok = get_token(src);
 	char *str = strdup("");
 	size_t len = 1;
 	int has_str = 0;
@@ -109,7 +109,7 @@ static char *get_string(FILE *file){
 		//continue until colon again
 		for(;;){
 			destroy_token(tok);
-			tok = get_token(file);
+			tok = get_token(src);
 			if(tok->type == T_EOF){
 				syntax_error(tok);
 			}
@@ -124,7 +124,7 @@ static char *get_string(FILE *file){
 		//continue until double colon again
 		for(;;){
 			destroy_token(tok);
-			tok = get_token(file);
+			tok = get_token(src);
 			if(tok->type == T_EOF){
 				syntax_error(tok);
 			}
@@ -132,14 +132,14 @@ static char *get_string(FILE *file){
 			if(!(flags & TASH_NOPS) && tok->type == T_NEWLINE)show_ps2();
 			switch(tok->type){
 			case T_DOLLAR:;
-				char *val = parse_var(file);
+				char *val = parse_var(src);
 				if(!val)syntax_error(tok);
 				append(val);
 				free(val);
 				continue;
 			case T_BACKSLASH:
 				destroy_token(tok);
-				tok = get_token(file);
+				tok = get_token(src);
 				if(tok->type == T_EOF)syntax_error(tok);
 				append(token2str(tok));
 				continue;
@@ -152,14 +152,14 @@ static char *get_string(FILE *file){
 		break;
 		break;
 	case T_DOLLAR:;
-		char *val = parse_var(file);
+		char *val = parse_var(src);
 		if(!val)break;
 		append(val);
 		free(val);
 		break;
 	case T_BACKSLASH:
 		destroy_token(tok);
-		tok = get_token(file);
+		tok = get_token(src);
 		if(tok->type == T_EOF)syntax_error(tok);
 		if(tok->type == T_NEWLINE)break;
 		append(token2str(tok));
@@ -169,7 +169,7 @@ static char *get_string(FILE *file){
 	}
 		has_str = 1;
 		destroy_token(tok);
-		tok = get_token(file);
+		tok = get_token(src);
 	}
 end:
 	putback = tok;
@@ -181,26 +181,26 @@ end:
 	return str;
 }
 
-static void skip_space(FILE *file){
-	token *tok = get_token(file);
+static void skip_space(source *src){
+	token *tok = get_token(src);
 	while(tok->type == T_SPACE){
 		destroy_token(tok);
-		tok = get_token(file);
+		tok = get_token(src);
 	}
 	putback = tok;
 }
 
-int interpret_expr(FILE *file,int *is_last){
+int interpret_expr(source *src,int *is_last){
 	*is_last = 0;
 	int cmdc = 1;
 	struct cmd *cmdv = malloc(sizeof(struct cmd));
 	memset(cmdv,0,sizeof(struct cmd));
 	for(;;){
-		skip_space(file);
-		char *arg = get_string(file);
+		skip_space(src);
+		char *arg = get_string(src);
 		if(!arg){
 			//not a string what it is ?
-			token *tok = get_token(file);
+			token *tok = get_token(src);
 			switch(tok->type){
 			case T_SEMI_COLON:
 				//todo : check somthing else 
@@ -227,8 +227,8 @@ int interpret_expr(FILE *file,int *is_last){
 			case T_INFERIOR:
 				if(cmdv[cmdc-1].in)close(cmdv[cmdc-1].in);
 				destroy_token(tok);
-				skip_space(file);
-				tok = get_token(file);
+				skip_space(src);
+				tok = get_token(src);
 				if(tok->type != T_STR)syntax_error(tok);
 				cmdv[cmdc-1].in = open(tok->value,O_RDONLY);
 				if(cmdv[cmdc-1].in < 0){
@@ -244,8 +244,8 @@ int interpret_expr(FILE *file,int *is_last){
 				if(cmdv[cmdc-1].out)close(cmdv[cmdc-1].out);
 				int oflags = tok->type == T_APPEND ? O_APPEND : O_TRUNC;
 				destroy_token(tok);
-				skip_space(file);
-				tok = get_token(file);
+				skip_space(src);
+				tok = get_token(src);
 				if(tok->type != T_STR)syntax_error(tok);
 				cmdv[cmdc-1].out = open(tok->value,O_WRONLY | O_CREAT | oflags,S_IWUSR | S_IRUSR);
 				if(cmdv[cmdc-1].out < 0){
@@ -258,7 +258,7 @@ int interpret_expr(FILE *file,int *is_last){
 			case T_HASH:
 				while(tok->type != T_NEWLINE && tok->type != T_EOF){
 					destroy_token(tok);
-					tok = get_token(file);
+					tok = get_token(src);
 				}
 				putback = tok;
 				continue;
@@ -404,24 +404,24 @@ ret:
 	goto ret;
 }
 
-void interpret_line(FILE *file){
+void interpret_line(source *src){
 	//if is_last is set
 	//that mean that was the expr of the line
 	int is_last = 0;
 	while(!is_last){
-		interpret_expr(file,&is_last);
+		interpret_expr(src,&is_last);
 	}
 }
 
-int interpret(FILE *file){
+int interpret(source *src){
 	for(;;){
 		if(!(flags & TASH_NOPS)){
 			show_ps1();
 		}
-		token *tok = get_token(file);
+		token *tok = get_token(src);
 		if(tok->type == T_EOF)break;
 		putback = tok;
-		interpret_line(file);
+		interpret_line(src);
 	}
 
 	return 0;

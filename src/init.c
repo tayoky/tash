@@ -11,7 +11,8 @@ static void ex_script(const char *name){
 	snprintf(path,256,"/etc/%s",name);
 	FILE *script = fopen(path,"r");
 	if(script){
-		interpret(script);
+		source src = SRC_FILE(script);
+		interpret(&src);
 		fclose(script);
 	}
 
@@ -19,7 +20,8 @@ static void ex_script(const char *name){
 		snprintf(path,256,"%s/%s",getenv("HOME"),name);
 		script = fopen(path,"r");
 		if(script){
-			interpret(script);
+			source src = SRC_FILE(script);
+			interpret(&src);
 			fclose(script);
 		}
 	}

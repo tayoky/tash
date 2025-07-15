@@ -130,6 +130,7 @@ static void redraw(){
 }
 
 static void move(int m){
+	if(!m)return;
 	if(m < 0){
 		for(int i=0; i>m; i--){
 			putchar('\b');
@@ -250,7 +251,7 @@ int prompt_getc(void){
 			if(fill){
 				memmove(&prompt_buf[start + strlen(fill)],&prompt_buf[end],prompt_len - end);
 				prompt_len += strlen(fill) - (end - start);
-				strcpy(&prompt_buf[start],fill);
+				memcpy(&prompt_buf[start],fill,strlen(fill));
 				move(start-prompt_cursor);
 				redraw();
 				move(start+strlen(fill)-prompt_cursor);

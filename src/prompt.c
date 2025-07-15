@@ -144,6 +144,10 @@ static void move(int m){
 
 int prompt_getc(void){
 	if(prompt_index < prompt_len){
+		if(prompt_buf[prompt_index] == 0){
+			prompt_index++;
+			return EOF;
+		}
 		return (unsigned char)prompt_buf[prompt_index++];
 	}
 	if(tcgetattr(STDIN_FILENO,&old) < 0){
@@ -163,6 +167,12 @@ int prompt_getc(void){
 	prompt_len = 0;
 	for(;;){
 		int c = getchar();
+		if(c == new.c_cc[VEOF]){
+			if(prompt_len >0)continue;
+			prompt_buf[0] = 0;
+			prompt_len++;
+			goto finish;
+		}
 		switch(c){
 		case '\033':;
 			int c1 = getchar();
@@ -187,6 +197,12 @@ int prompt_getc(void){
 				}
 				move(1);
 				fflush(stdout);
+				break;
+			case 'H':
+				move(-prompt_cursor);
+				break;
+			case 'F':
+				move(prompt_len-prompt_cursor);
 				break;
 			}
 			break;

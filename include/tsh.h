@@ -71,6 +71,8 @@ int interpret(source *src);
 
 void show_ps1(void);
 void show_ps2(void);
+void prompt_unget(int c);
+int prompt_getc(void);
 
 void init_var(void);
 char *getvar(const char *name);

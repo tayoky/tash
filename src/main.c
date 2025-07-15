@@ -99,6 +99,10 @@ int main(int argc,char **argv){
 		}
 		init();
 		source src = SRC_FILE(stdin);
+		if(flags & TASH_INTERACTIVE){
+			src.getc = (void*)prompt_getc;
+			src.unget = (void*)prompt_unget;
+		}
 		return interpret(&src);
 	}
 }

@@ -1,9 +1,12 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <termios.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include "tsh.h"
 
 struct termios old;
@@ -126,6 +129,19 @@ static void redraw(){
 	fflush(stdout);
 }
 
+static void move(int m){
+	if(m < 0){
+		for(int i=0; i>m; i--){
+			putchar('\b');
+		}
+	} else {
+		for(int i=0; i<m; i++){
+			putchar(prompt_buf[prompt_cursor+i]);
+		}
+	}
+	prompt_cursor += m;
+}
+
 int prompt_getc(void){
 	if(prompt_index < prompt_len){
 		return (unsigned char)prompt_buf[prompt_index++];
@@ -161,8 +177,7 @@ int prompt_getc(void){
 					putchar('\a');
 					break;
 				}
-				prompt_cursor--;
-				putchar('\b');
+				move(-1);
 				fflush(stdout);
 				break;
 			case 'C':
@@ -170,15 +185,66 @@ int prompt_getc(void){
 					putchar('\a');
 					break;
 				}
-				putchar(prompt_buf[prompt_cursor]);
-				prompt_cursor++;
+				move(1);
 				fflush(stdout);
 				break;
 			}
 			break;
-		case '\t':
+		case '\t':{
 			//TODO : auto completion
+			//find the start and end of current arg
+			int search_command = 0;
+			int start = prompt_cursor;
+			while(start > 0 && !isblank(prompt_buf[start])){
+				start--;
+			}
+			if(isblank(prompt_buf[start]) && start < prompt_cursor){
+				start++;
+			}
+			int end = prompt_cursor;
+			while(end < prompt_len && !isblank(prompt_buf[end])){
+				end++;;
+			}
+			char search[end-start+1];
+			memcpy(search,&prompt_buf[start],end-start);
+			search[end-start] = '\0';
+			char *file = strrchr(search,'/') ? strrchr(search,'/') + 1: search;
+			char *dir = file == search ? strdup("./") : strndup(search,file - search);
+			DIR *dirfd = opendir(dir);
+			if(!dirfd){
+				free(dir);
+				continue;
+			}
+
+			char *fill = NULL;
+			for(;;){
+				struct dirent *ent = readdir(dirfd);
+				if(!ent)break;
+				if(!strncmp(ent->d_name,file,strlen(file))){
+					fill = malloc(strlen(dir)+strlen(ent->d_name)+2);
+					sprintf(fill,"%s%s",dir,ent->d_name);
+					struct stat st;
+					if(stat(fill,&st) >= 0 && S_ISDIR(st.st_mode)){
+						strcat(fill,"/");
+					}
+					break;
+				}
+			}
+
+			if(fill){
+				memmove(&prompt_buf[start + strlen(fill)],&prompt_buf[start + end],prompt_len - (end - start));
+				prompt_len += strlen(fill) - (end - start);
+				strcpy(&prompt_buf[start],fill);
+				move(start-prompt_cursor);
+				redraw();
+				move(start+strlen(fill)-prompt_cursor);
+				fflush(stdout);
+			}
+			closedir(dirfd);
+			free(dir);
+
 			continue;
+		}
 		case '\n':
 			prompt_buf[prompt_len] = c;
 			while(prompt_cursor < prompt_len){
@@ -192,8 +258,7 @@ int prompt_getc(void){
 				putchar('\a');
 				break;
 			}
-			prompt_cursor--;
-			putchar('\b');
+			move(-1);
 			memmove(&prompt_buf[prompt_cursor],&prompt_buf[prompt_cursor+1],prompt_len-prompt_cursor);
 			prompt_len--;
 			redraw();

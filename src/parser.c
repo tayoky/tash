@@ -59,6 +59,12 @@ char *parse_var(FILE *file){
 		char *var = getvar(tok->value);
 		destroy_token(tok);
 		return strdup(var ? var : "");
+	case T_QUESTION_MARK:
+		sprintf(tmp,"%d",exit_status);
+		return strdup(tmp);
+	case T_HASH:
+		sprintf(tmp,"%d",_argc-1 < 0  ? 0 : _argc-1);
+		return strdup(tmp);
 	case T_OPEN_BRACK:
 		destroy_token(tok);
 		tok = get_token(file);

@@ -3,6 +3,8 @@
 #include "tsh.h"
 
 int flags;
+int _argc;
+char **_argv;
 
 #define OPT(name,f) if(!strcmp(name,opt)){\
 	flags |= f;\
@@ -12,16 +14,14 @@ int flags;
 int main(int argc,char **argv){
 	//parse args and set flags
 	flags = 0 ;
+	//by default only $0 with shell path
+	_argc = argc > 0 ? 1 : 0;
+	_argv = argv;
 	if(argc > 0 && argv[0][0] == '-'){
 		flags |= TASH_LOGIN;
 	}
 
 	int i = 1;
-	int read_string = 0;
-	if(argc >= 2 && !strcmp(argv[1],"-c")){
-		read_string = 1;
-		i++;
-	}
 
 	for(;i<argc; i++){
 		if(argv[i][0] != '-')break;
@@ -47,25 +47,28 @@ int main(int argc,char **argv){
 			opt++;
 		}
 	}
-	//automatic detection of tty when no script is given
-	if(!read_string && i == argc && isatty(STDIN_FILENO) == 1){
-		flags |= TASH_INTERACTIVE;
-	}
-
-	init(argc,argv);
-	if(argc - i > 0){
+	if(argc - i  >= 1 && !strcmp(argv[i],"-c")){
+		//shell launched with -c
+		if(argc - i < 2){
+			error("missing command string");
+			return 1;
+		}
+		init();
+		FILE *script = tmpfile();
+		fprintf(script,"%s\n",argv[i]);
+		i++;
+		rewind(script);
+		return interpret(script);
+	} else if(argc - i >= 1){
+		//shell launched with script or option
 		if(!strcmp(argv[i],"--version")){
 			printf("tash %s by tayoky\n",TASH_VERSION);
 			return 0;
 		}
-
-		if(read_string){
-			FILE *script = tmpfile();
-			fprintf(script,"%s\n",argv[i]);
-			i++;
-			rewind(script);
-			return interpret(script);
-		}
+		//in script mode remove everything before script name from arguement
+		_argc = argc - i;
+		_argv = &argv[i];
+		init();
 		FILE *script = fopen(argv[i],"r");
 		if(!script){
 			perror(argv[i]);
@@ -74,11 +77,12 @@ int main(int argc,char **argv){
 		int ret = interpret(script);
 		fclose(script);
 		return ret;
+	} else {
+		//automatic detection of tty when no script is given
+		if(isatty(STDIN_FILENO) == 1){
+			flags |= TASH_INTERACTIVE;
+		}
+		init();
+		return interpret(stdin);
 	}
-
-	if(read_string){
-		error("no command string specified");
-		return 1;
-	}
-	return interpret(stdin);
 }

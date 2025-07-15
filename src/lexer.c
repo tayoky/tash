@@ -36,6 +36,7 @@ struct tok operators[]={
 	TOK(T_HASH,"#"),
 	TOK(T_DOLLAR,"$"),
 	TOK(T_BACKSLASH,"\\"),
+	TOK(T_QUESTION_MARK,"?"),
 };
 
 const char *token2str(token *t){

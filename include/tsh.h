@@ -17,29 +17,32 @@ struct builtin {
 	int lock_bypass;
 };
 
-#define T_NULL         0
-#define T_STR          1
-#define T_AND          2
-#define T_OR           3
-#define T_EOF          4
-#define T_APPEND       5
-#define T_PIPE        '|'
-#define T_BG          '&'
-#define T_SPACE       ' '
-#define T_OPEN_BRACK  '{'
-#define T_CLOSE_BRACK '}'
-#define T_OPEN_PAREN  '('
-#define T_CLOSE_PAREN ')'
-#define T_SEMI_COLON  ';'
-#define T_DQUOTE      '"'
-#define T_QUOTE       '\''
-#define T_INFERIOR    '<'
-#define T_SUPERIOR    '>'
-#define T_NEWLINE     '\n'
-#define T_HASH        '#'
-#define T_DOLLAR      '$'
-#define T_BACKSLASH   '\\'
+#define T_NULL          0
+#define T_STR           1
+#define T_AND           2
+#define T_OR            3
+#define T_EOF           4
+#define T_APPEND        5
+#define T_PIPE         '|'
+#define T_BG           '&'
+#define T_SPACE        ' '
+#define T_OPEN_BRACK   '{'
+#define T_CLOSE_BRACK  '}'
+#define T_OPEN_PAREN   '('
+#define T_CLOSE_PAREN  ')'
+#define T_SEMI_COLON   ';'
+#define T_DQUOTE       '"'
+#define T_QUOTE        '\''
+#define T_INFERIOR     '<'
+#define T_SUPERIOR     '>'
+#define T_NEWLINE      '\n'
+#define T_HASH         '#'
+#define T_DOLLAR       '$'
+#define T_BACKSLASH    '\\'
+#define T_QUESTION_MARK '?'
 
+extern int _argc;
+extern char **_argv;
 extern int flags;
 #define TASH_LOGIN       (1 << 0)
 #define TASH_INTERACTIVE (1 << 1)
@@ -67,7 +70,7 @@ void init_var(void);
 char *getvar(const char *name);
 void *putvar(const char *var);
 
-void init(int argc,char **argv);
+void init();
 
 // cute custom perror
 #undef perror

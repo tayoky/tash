@@ -225,8 +225,8 @@ int prompt_getc(void){
 			memcpy(search,&prompt_buf[start],end-start);
 			search[end-start] = '\0';
 			char *file = strrchr(search,'/') ? strrchr(search,'/') + 1: search;
-			char *dir = file == search ? strdup("./") : strndup(search,file - search);
-			DIR *dirfd = opendir(dir);
+			char *dir = file == search ? strdup("")  : strndup(search,file - search);
+			DIR *dirfd = opendir(!strcmp(dir,"") ? "." : dir);
 			if(!dirfd){
 				free(dir);
 				continue;
@@ -248,12 +248,7 @@ int prompt_getc(void){
 			}
 
 			if(fill){
-				if(!strncmp("./",fill,2)){
-					char *simp = strdup(fill+2);
-					free(fill);
-					fill = simp;
-				}
-				memmove(&prompt_buf[start + strlen(fill)],&prompt_buf[start + end],prompt_len - (end - start));
+				memmove(&prompt_buf[start + strlen(fill)],&prompt_buf[end],prompt_len - end);
 				prompt_len += strlen(fill) - (end - start);
 				strcpy(&prompt_buf[start],fill);
 				move(start-prompt_cursor);

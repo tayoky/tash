@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <ctype.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include "tsh.h"
@@ -43,6 +44,18 @@ static token *get_token(source *src){
 		strcat(str,s);
 
 char *parse_var(source *src){
+	//first check for single digit
+	int c = src->getc(src->data);
+	if(isdigit(c)){
+		c -= '0';
+		if(c >= _argc){
+			return strdup("");
+		} else {
+			return strdup(_argv[c]);
+		}
+	} else {
+		src->unget(c,src->data);
+	}
 	token *tok = get_token(src);
 	char tmp[32];
 	switch(tok->type){
@@ -79,7 +92,18 @@ char *parse_var(source *src){
 			break;
 		}
 		if(tok->type != T_STR)syntax_error(tok);
-		char *val = getvar(tok->value);
+		char *val;
+		char *end;
+		long digit = strtol(tok->value,&end,10);
+		if(end != tok->value){
+			if(digit >= _argc){
+				val = "";
+			} else {
+				val = _argv[digit];
+			}
+		} else {
+			val = getvar(tok->value);
+		}
 		destroy_token(tok);
 		tok = get_token(src);
 		if(tok->type != T_CLOSE_BRACK)syntax_error(tok);

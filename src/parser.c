@@ -43,7 +43,7 @@ static token *get_token(source *src){
 		str = realloc(str,len);\
 		strcat(str,s);
 
-char *parse_var(source *src){
+static char *parse_var(source *src){
 	//first check for single digit
 	int c = src->getc(src->data);
 	if(isdigit(c)){
@@ -124,6 +124,15 @@ static char *get_string(source *src){
 	char *str = strdup("");
 	size_t len = 1;
 	int has_str = 0;
+	//if start with a string that start with ~
+	//tilde completion
+	if(tok->type == T_STR && tok->value[0] == '~' && getenv("HOME")){
+		append(getenv("HOME"));
+		append(tok->value+1);
+		destroy_token(tok);
+		tok = get_token(src);
+		has_str = 1;
+	}
 	for(;;){
 	switch(tok->type){
 	case T_STR:

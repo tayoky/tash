@@ -21,6 +21,8 @@ typedef struct source {
 	void *data;
 	int (*getc)(void *);
 	int (*unget)(int,void *);
+	size_t if_depth;
+	size_t then_skip;
 } source;
 
 #define T_NULL          0

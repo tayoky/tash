@@ -219,6 +219,55 @@ int interpret_expr(source *src,int *is_last){
 	int cmdc = 1;
 	struct cmd *cmdv = malloc(sizeof(struct cmd));
 	memset(cmdv,0,sizeof(struct cmd));
+	skip_space(src);
+	token *first = get_token(src);
+	if(first->type != T_STR){
+		putback = first;
+	} else if(!strcmp(first->value,"fi")){
+		destroy_token(first);
+		skip_space(src);
+		token *tok = get_token(src);
+		if(tok->type != T_SEMI_COLON && tok->type != T_NEWLINE){
+			syntax_error(tok);
+		}
+		destroy_token(tok);
+		return 0;
+	} else if (!strcmp(first->value,"if")){
+		//if keyword
+		src->if_depth++;
+		destroy_token(first);
+	} else if (!strcmp(first->value,"then")){
+		//then keyword
+		if(!src->if_depth){
+			syntax_error(first);
+		}
+		src->if_depth--;
+		destroy_token(first);
+		if(exit_status != 0){
+			//skip until else
+			size_t depth = 1;
+			token *prev = get_token(src);
+			while(depth){
+				token *tok = get_token(src);
+				if(tok->type == T_EOF){
+					destroy_token(prev);
+					syntax_error(tok);
+				} else if((prev->type == T_SEMI_COLON || prev->type == T_NEWLINE) && tok->type == T_STR){
+					if(!strcmp(tok->value,"if")){
+						depth++;
+					} else if(!strcmp(tok->value,"fi")){
+						depth--;
+					}
+				}
+				destroy_token(prev);
+				prev = tok;
+			}
+			putback = prev;
+			return 0;
+		}
+	} else {
+		putback = first;
+	}
 	for(;;){
 		skip_space(src);
 		char *arg = get_string(src);

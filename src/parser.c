@@ -232,11 +232,33 @@ int interpret_expr(source *src,int *is_last){
 		}
 		destroy_token(tok);
 		return 0;
+	} else if (!strcmp(first->value,"else")){
+		//else keyword
+		//skip until fi
+		size_t depth = 1;
+		token *prev = get_token(src);
+		while(depth){
+			token *tok = get_token(src);
+			if(tok->type == T_EOF){
+				destroy_token(prev);
+				syntax_error(tok);
+			} else if((prev->type == T_SEMI_COLON || prev->type == T_NEWLINE) && tok->type == T_STR){
+				if(!strcmp(tok->value,"if")){
+					depth++;
+				} else if(!strcmp(tok->value,"fi")){
+					depth--;
+				}
+			}
+			destroy_token(prev);
+			prev = tok;
+		}
+		putback = prev;
+		return 0;
 	} else if (!strcmp(first->value,"if")){
 		//if keyword
 		src->if_depth++;
 		destroy_token(first);
-	} else if (!strcmp(first->value,"then")){
+	}else if (!strcmp(first->value,"then")){
 		//then keyword
 		if(!src->if_depth){
 			syntax_error(first);
@@ -255,12 +277,17 @@ int interpret_expr(source *src,int *is_last){
 				} else if((prev->type == T_SEMI_COLON || prev->type == T_NEWLINE) && tok->type == T_STR){
 					if(!strcmp(tok->value,"if")){
 						depth++;
-					} else if(!strcmp(tok->value,"fi")){
+					} else if(!strcmp(tok->value,"fi") || (depth == 1 && (!strcmp(tok->value,"else") ||!strcmp(tok->value,"elif")))){
 						depth--;
 					}
 				}
 				destroy_token(prev);
 				prev = tok;
+			}
+			//don't putback else/elif
+			if(!strcmp(prev->value,"else")||!strcmp(prev->value,"elif")){
+				destroy_token(prev);
+				return 0;
 			}
 			putback = prev;
 			return 0;

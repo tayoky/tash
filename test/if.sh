@@ -26,4 +26,12 @@ if
 	fi ; then
 	true
 #	echo hello again
+else 
+	echo no
+fi
+
+if false ; then
+	true
+else
+	echo yes
 fi

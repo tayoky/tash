@@ -31,7 +31,19 @@ else
 fi
 
 if false ; then
-	true
+	echo no
+elif true ; then
+	echo yes
+else
+	echo no
+fi
+
+if false ; then
+	echo no
+elif false ; then
+	echo no
+elif false ; then
+	echo no
 else
 	echo yes
 fi

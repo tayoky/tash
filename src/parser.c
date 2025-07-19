@@ -232,7 +232,7 @@ int interpret_expr(source *src,int *is_last){
 		}
 		destroy_token(tok);
 		return 0;
-	} else if (!strcmp(first->value,"else")){
+	} else if (!strcmp(first->value,"else") || !strcmp(first->value,"elif")){
 		//else keyword
 		//skip until fi
 		size_t depth = 1;
@@ -285,7 +285,12 @@ int interpret_expr(source *src,int *is_last){
 				prev = tok;
 			}
 			//don't putback else/elif
-			if(!strcmp(prev->value,"else")||!strcmp(prev->value,"elif")){
+			if(!strcmp(prev->value,"elif")){
+				destroy_token(prev);
+				src->if_depth++;
+				return 0;
+			}
+			if(!strcmp(prev->value,"else")){
 				destroy_token(prev);
 				return 0;
 			}

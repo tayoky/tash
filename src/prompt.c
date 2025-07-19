@@ -7,6 +7,7 @@
 #include <time.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include "tsh.h"
 
 struct termios old;
@@ -143,6 +144,44 @@ static void move(int m){
 	prompt_cursor += m;
 }
 
+static int alpha_sort(const void *e1,const void *e2){
+	const char *const *str1 = e1;
+	const char *const *str2 = e2;
+	return strcmp(*str1,*str2);
+}
+
+char **autocomplete(char *str){
+	char *file = strrchr(str,'/') ? strrchr(str,'/') + 1: str;
+	char *dir = file == str ? strdup("")  : strndup(str,file - str);
+	DIR *dirfd = opendir(!strcmp(dir,"") ? "." : dir);
+	if(!dirfd){
+		free(dir);
+		return NULL;
+	}
+
+	char **fill = NULL;
+	size_t count = 0;
+	for(;;){
+		struct dirent *ent = readdir(dirfd);
+		if(!ent)break;
+		if(!strncmp(ent->d_name,file,strlen(file))){
+			fill = realloc(fill,sizeof(char*)*(count+1));
+			fill[count] = malloc(strlen(dir)+strlen(ent->d_name)+2);
+			sprintf(fill[count],"%s%s",dir,ent->d_name);
+			struct stat st;
+			if(stat(fill[count],&st) >= 0 && S_ISDIR(st.st_mode)){
+				strcat(fill[count],"/");
+			}
+			count++;
+		}
+	}
+	closedir(dirfd);
+	free(dir);
+	fill = realloc(fill,sizeof(char*)*(count+1));
+	fill[count] = NULL;
+	return fill;
+}
+
 int prompt_getc(void){
 	if(prompt_index < prompt_len){
 		if(prompt_buf[prompt_index] == 0){
@@ -225,41 +264,73 @@ int prompt_getc(void){
 			char search[end-start+1];
 			memcpy(search,&prompt_buf[start],end-start);
 			search[end-start] = '\0';
-			char *file = strrchr(search,'/') ? strrchr(search,'/') + 1: search;
-			char *dir = file == search ? strdup("")  : strndup(search,file - search);
-			DIR *dirfd = opendir(!strcmp(dir,"") ? "." : dir);
-			if(!dirfd){
-				free(dir);
+
+			char **fill = autocomplete(search);
+			if(!fill || !*fill){
 				continue;
 			}
 
-			char *fill = NULL;
-			for(;;){
-				struct dirent *ent = readdir(dirfd);
-				if(!ent)break;
-				if(!strncmp(ent->d_name,file,strlen(file))){
-					fill = malloc(strlen(dir)+strlen(ent->d_name)+2);
-					sprintf(fill,"%s%s",dir,ent->d_name);
-					struct stat st;
-					if(stat(fill,&st) >= 0 && S_ISDIR(st.st_mode)){
-						strcat(fill,"/");
-					}
-					break;
+			//try to find something in common in all possibimity
+			size_t common = strlen(fill[0]);
+			for(size_t i=0; fill[i]; i++){
+				if(strncmp(fill[0],fill[i],common)){
+					for(size_t j=0; j < common; j++)
+						if(fill[0][j] != fill[i][j]){
+							common = j;
+							break;
+						}
 				}
 			}
 
-			if(fill){
-				memmove(&prompt_buf[start + strlen(fill)],&prompt_buf[end],prompt_len - end);
-				prompt_len += strlen(fill) - (end - start);
-				memcpy(&prompt_buf[start],fill,strlen(fill));
-				move(start-prompt_cursor);
-				redraw();
-				move(start+strlen(fill)-prompt_cursor);
-				fflush(stdout);
-			}
-			closedir(dirfd);
-			free(dir);
+			if(common <= strlen(search) || !common){
+				//find the biggest string
+				size_t cell_size = 0;
+				size_t count= 0;
+				for(size_t i=0; fill[i]; i++){
+					count++;
+					if(strlen(fill[i]) > cell_size){
+						cell_size = strlen(fill[i]);
+					}
+				}
+				cell_size++;
+				struct winsize win;
+				if(ioctl(STDOUT_FILENO,TIOCGWINSZ,&win) < 0){
+					win.ws_col = 80;
+				}
 
+				size_t cell_per_line = win.ws_col / cell_size;
+
+				//sort in aphabetic
+				qsort(fill,count,sizeof(char *),alpha_sort);
+
+				//print time
+				putchar('\n');
+				for(size_t i=0; i<count; i++){
+					fputs(fill[i],stdout);
+					for(size_t j = strlen(fill[i]); j<cell_size; j++)putchar(' ');
+					if(i % cell_per_line  == cell_per_line - 1 && i < count - 1){
+						putchar('\n');
+					}
+				}
+
+				putchar('\n');
+				show_ps1();
+				int old_cursor = prompt_cursor;
+				prompt_cursor = 0;
+				redraw();
+				move(old_cursor);
+				fflush(stdout);
+
+				continue;
+			}
+
+			memmove(&prompt_buf[start + common],&prompt_buf[end],prompt_len - end);
+			prompt_len += common - (end - start);
+			memcpy(&prompt_buf[start],fill[0],common);
+			move(start-prompt_cursor);
+			redraw();
+			move(start+common-prompt_cursor);
+			fflush(stdout);
 			continue;
 		}
 		case '\n':

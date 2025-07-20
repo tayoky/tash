@@ -23,6 +23,7 @@ typedef struct source {
 	int (*unget)(int,void *);
 	size_t if_depth;
 	int op;
+	int flags;
 } source;
 
 #define T_NULL          0
@@ -88,6 +89,7 @@ void init();
 
 #define SRC_FILE(file) {.data = file,\
 	.getc  = (void *)fgetc,\
-	.unget = (void *)ungetc,}
+	.unget = (void *)ungetc,\
+	.flags = TASH_NOPS}
 
 #endif

@@ -20,7 +20,7 @@ token *putback = NULL;
 
 int exit_status ;
 
-#define syntax_error(tok) {flags|=TASH_IGN_NL;\
+#define syntax_error(tok) {src->flags|=TASH_IGN_NL;\
 	error("syntax error near token %s",token_name(tok));\
 	if(tok->type == T_NEWLINE || tok->type == T_EOF){\
 		putback = tok;\
@@ -37,6 +37,15 @@ static token *get_token(source *src){
 		return tok;
 	}
 	return next_token(src);
+}
+
+static void skip_space(source *src){
+	token *tok = get_token(src);
+	while(tok->type == T_SPACE){
+		destroy_token(tok);
+		tok = get_token(src);
+	}
+	putback = tok;
 }
 
 #define append(s) len += strlen(s);\
@@ -113,7 +122,40 @@ static char *parse_var(source *src){
 			return strdup(tmp);
 		}
 		return strdup(val ? val: "");
-
+	case '(':
+		//TODO : this is full of fd leak
+		//TODO : launch an actual subshell
+		destroy_token(tok);
+		int pipefd[2];
+		if(pipe(pipefd) < 0){
+			perror("pipe");
+		}
+		puts("enter");
+		int old_out = dup(STDOUT_FILENO);
+		dup2(pipefd[1],STDOUT_FILENO);
+		printf("test");
+		close(pipefd[1]);
+		int old = src->flags;
+		src->flags |= TASH_NOPS;
+		interpret(src);
+		src->flags = old;
+		dup2(old_out,STDOUT_FILENO);
+		close(old_out);
+		puts("exit");
+		char buf[4096];
+		ssize_t size = read(pipefd[0],buf,sizeof(buf)-1);
+		if(size < 0){
+			perror("read");
+			close(pipefd[0]);
+			return strdup("");
+		}
+		buf[size] = '\0';
+		//replace newline with space
+		while(strchr(buf,'\n')){
+			*strchr(buf,'\n') = ' ';
+		}
+		close(pipefd[0]);
+		return strdup(buf);
 	default:
 		syntax_error(tok);
 	}
@@ -147,7 +189,7 @@ static char *get_string(source *src){
 				syntax_error(tok);
 			}
 			if(tok->type == T_QUOTE)break;
-			if(!(flags & TASH_NOPS) && tok->type == T_NEWLINE)show_ps2();
+			if(!(src->flags & TASH_NOPS) && tok->type == T_NEWLINE)show_ps2();
 			const char *name = token2str(tok);
 			append(name);
 		
@@ -162,7 +204,7 @@ static char *get_string(source *src){
 				syntax_error(tok);
 			}
 			if(tok->type == T_DQUOTE)break;
-			if(!(flags & TASH_NOPS) && tok->type == T_NEWLINE)show_ps2();
+			if(!(src->flags & TASH_NOPS) && tok->type == T_NEWLINE)show_ps2();
 			switch(tok->type){
 			case T_DOLLAR:;
 				char *val = parse_var(src);
@@ -212,15 +254,6 @@ end:
 		return NULL;
 	}
 	return str;
-}
-
-static void skip_space(source *src){
-	token *tok = get_token(src);
-	while(tok->type == T_SPACE){
-		destroy_token(tok);
-		tok = get_token(src);
-	}
-	putback = tok;
 }
 
 int interpret_expr(source *src,int *is_last){
@@ -323,18 +356,19 @@ int interpret_expr(source *src,int *is_last){
 				destroy_token(tok);
 				goto finish;
 			case T_EOF:
+			case T_CLOSE_PAREN:
 				*is_last = 1;
-				destroy_token(tok);
-				if((flags & TASH_IGN_NL) || (flags & TASH_IGN_EOF)){
-					flags &= ~(TASH_IGN_NL | TASH_IGN_EOF);
+				putback = tok;
+				if((src->flags & TASH_IGN_NL) || (src->flags & TASH_IGN_EOF)){
+					src->flags &= ~(TASH_IGN_NL | TASH_IGN_EOF);
 					goto ret;
 				}
 				goto finish;
 			case T_NEWLINE:
 				*is_last = 1;
 				destroy_token(tok);
-				if(flags & TASH_IGN_NL){
-					flags &= ~TASH_IGN_NL;
+				if(src->flags & TASH_IGN_NL){
+					src->flags &= ~TASH_IGN_NL;
 					goto ret;
 				}
 				goto finish;
@@ -348,7 +382,7 @@ int interpret_expr(source *src,int *is_last){
 				if(cmdv[cmdc-1].in < 0){
 					exit_status = 1;
 					perror(tok->value);
-					flags |= TASH_IGN_NL;
+					src->flags |= TASH_IGN_NL;
 				}
 				destroy_token(tok);
 
@@ -437,7 +471,7 @@ finish_skip_check:
 	cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * (cmdv[cmdc-1].argc + 1));
 	cmdv[cmdc-1].argv[cmdv[cmdc-1].argc]= NULL;
 
-	if((flags & TASH_IGN_NL) || (flags & TASH_IGN_EOF)){
+	if((src->flags & TASH_IGN_NL) || (src->flags & TASH_IGN_EOF)){
 ret:
 		for(int i=0;i<cmdc;i++){
 			for(int j=0;j<cmdv[i].argc;j++){
@@ -525,7 +559,7 @@ ret:
 
 	if(!to_wait)goto ret;
 
-	if(!(flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,leader) < 0){
+	if(!(src->flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,leader) < 0){
 		perror("tcsetpgrp");
 	}
 	for(int i=0; i<to_wait; i++){
@@ -535,7 +569,7 @@ ret:
 			goto ret;
 		}
 	}
-	if(!(flags & TASH_NOPS) && (signal(SIGTTOU,SIG_IGN) == SIG_ERR || tcsetpgrp(STDIN_FILENO,getpid()) < 0 || signal(SIGTTOU,SIG_DFL) == SIG_ERR)){
+	if(!(src->flags & TASH_NOPS) && (signal(SIGTTOU,SIG_IGN) == SIG_ERR || tcsetpgrp(STDIN_FILENO,getpid()) < 0 || signal(SIGTTOU,SIG_DFL) == SIG_ERR)){
 		perror("tcsetpgrp"); 
 	}
 	if(WIFSIGNALED(exit_status)){
@@ -556,11 +590,14 @@ void interpret_line(source *src){
 
 int interpret(source *src){
 	for(;;){
-		if(!(flags & TASH_NOPS)){
+		if(!(src->flags & TASH_NOPS)){
 			show_ps1();
 		}
 		token *tok = get_token(src);
-		if(tok->type == T_EOF)break;
+		if(tok->type == T_EOF || tok->type == T_CLOSE_PAREN){
+			destroy_token(tok);
+			break;
+		}
 		putback = tok;
 		interpret_line(src);
 	}

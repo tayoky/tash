@@ -5,8 +5,6 @@
 
 //TODO: move this to a proper source builtin
 static void ex_script(const char *name){
-	flags |= TASH_NOPS;
-
 	char path[256];
 	snprintf(path,256,"/etc/%s",name);
 	FILE *script = fopen(path,"r");
@@ -25,17 +23,10 @@ static void ex_script(const char *name){
 			fclose(script);
 		}
 	}
-
-	if(flags & TASH_INTERACTIVE){
-		flags &= ~TASH_NOPS;
-	}
 }
 
 void init(void){
 	init_var();
-	if(!(flags & TASH_INTERACTIVE)){
-		flags |= TASH_NOPS;
-	}
 
 	if(flags & TASH_LOGIN){
 		//source .profile

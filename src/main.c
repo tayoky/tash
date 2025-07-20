@@ -102,6 +102,7 @@ int main(int argc,char **argv){
 		if(flags & TASH_INTERACTIVE){
 			src.getc = (void*)prompt_getc;
 			src.unget = (void*)prompt_unget;
+			src.flags = 0;
 		}
 		return interpret(&src);
 	}

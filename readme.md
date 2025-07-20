@@ -10,12 +10,13 @@ one of its final goal is to be as complete as bash (or at least pretty close)
 - backslash support
 - builtin commands such as cd exit or export
 - basic signal control (SIGINTR and stuff)
-
-# soon
-features that will be added soon
 - pipes
 - variables
 - if/else
+- basic auto completion for filename
+
+# soon
+features that will be added soon
 - for loop
 - subshell
 

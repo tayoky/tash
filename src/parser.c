@@ -130,18 +130,15 @@ static char *parse_var(source *src){
 		if(pipe(pipefd) < 0){
 			perror("pipe");
 		}
-		puts("enter");
 		int old_out = dup(STDOUT_FILENO);
 		dup2(pipefd[1],STDOUT_FILENO);
-		printf("test");
 		close(pipefd[1]);
 		int old = src->flags;
-		src->flags |= TASH_NOPS;
+		src->flags |= TASH_NOPS | TASH_SUBSHELL;
 		interpret(src);
 		src->flags = old;
 		dup2(old_out,STDOUT_FILENO);
 		close(old_out);
-		puts("exit");
 		char buf[4096];
 		ssize_t size = read(pipefd[0],buf,sizeof(buf)-1);
 		if(size < 0){
@@ -355,8 +352,8 @@ int interpret_expr(source *src,int *is_last){
 				if(!cmdv[cmdc-1].argc)syntax_error(tok);
 				destroy_token(tok);
 				goto finish;
-			case T_EOF:
 			case T_CLOSE_PAREN:
+			case T_EOF:
 				*is_last = 1;
 				putback = tok;
 				if((src->flags & TASH_IGN_NL) || (src->flags & TASH_IGN_EOF)){
@@ -595,6 +592,7 @@ int interpret(source *src){
 		}
 		token *tok = get_token(src);
 		if(tok->type == T_EOF || tok->type == T_CLOSE_PAREN){
+				if(tok->type == T_CLOSE_PAREN && !(src->flags & TASH_SUBSHELL))syntax_error(tok);
 			destroy_token(tok);
 			break;
 		}

@@ -58,6 +58,7 @@ extern int flags;
 #define TASH_NOPS        (1 << 2)
 #define TASH_IGN_NL      (1 << 3)
 #define TASH_IGN_EOF     (1 << 4)
+#define TASH_SUBSHELL    (1 << 5)
 
 #define arraylen(ar) (sizeof(ar)/sizeof(*ar))
 

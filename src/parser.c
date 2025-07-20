@@ -48,6 +48,13 @@ static void skip_space(source *src){
 	putback = tok;
 }
 
+static void subshell(source *src){
+	int old = src->flags;
+	src->flags |= TASH_NOPS | TASH_SUBSHELL;
+	interpret(src);
+	src->flags = old;
+}
+
 #define append(s) len += strlen(s);\
 		str = realloc(str,len);\
 		strcat(str,s);
@@ -122,9 +129,9 @@ static char *parse_var(source *src){
 			return strdup(tmp);
 		}
 		return strdup(val ? val: "");
-	case '(':
+	case T_OPEN_PAREN:
 		//TODO : this is full of fd leak
-		//TODO : launch an actual subshell
+		//TODO : if pipe become full ?
 		destroy_token(tok);
 		int pipefd[2];
 		if(pipe(pipefd) < 0){
@@ -132,11 +139,8 @@ static char *parse_var(source *src){
 		}
 		int old_out = dup(STDOUT_FILENO);
 		dup2(pipefd[1],STDOUT_FILENO);
+		subshell(src);
 		close(pipefd[1]);
-		int old = src->flags;
-		src->flags |= TASH_NOPS | TASH_SUBSHELL;
-		interpret(src);
-		src->flags = old;
 		dup2(old_out,STDOUT_FILENO);
 		close(old_out);
 		char buf[4096];
@@ -339,6 +343,16 @@ int interpret_expr(source *src,int *is_last){
 	} else {
 		putback = first;
 	}
+
+	//if a open parenthese we can launch a subshell
+	first = get_token(src);
+	if(first->type == T_OPEN_PAREN){
+		subshell(src);
+		return 0;
+	} else {
+		putback = first;
+	}
+
 	for(;;){
 		skip_space(src);
 		char *arg = get_string(src);
@@ -441,6 +455,8 @@ int interpret_expr(source *src,int *is_last){
 					cmdv[cmdc-1].in = pipefd[0];
 				}
 				continue;
+			default:
+				syntax_error(tok);
 			}
 			destroy_token(tok);
 

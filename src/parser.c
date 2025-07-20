@@ -229,7 +229,11 @@ static char *get_string(source *src){
 		break;
 	case T_DOLLAR:;
 		char *val = parse_var(src);
-		if(!val)break;
+		if(!val)goto skip;
+		if(!strcmp(val,"")){
+			free(val);
+			goto skip;
+		}
 		append(val);
 		free(val);
 		break;
@@ -244,6 +248,7 @@ static char *get_string(source *src){
 		goto end;
 	}
 		has_str = 1;
+skip:
 		destroy_token(tok);
 		tok = get_token(src);
 	}

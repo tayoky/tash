@@ -22,7 +22,7 @@ typedef struct source {
 	int (*getc)(void *);
 	int (*unget)(int,void *);
 	size_t if_depth;
-	size_t then_skip;
+	int op;
 } source;
 
 #define T_NULL          0

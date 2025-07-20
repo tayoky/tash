@@ -117,19 +117,6 @@ void show_ps2(void){
 
 #define ESC "\033"
 
-//redraw from cursor to the end
-static void redraw(){
-	for(int i=prompt_cursor; i<prompt_len; i++){
-		putchar(prompt_buf[i]);
-	}
-	putchar(' ');
-	putchar('\b');
-	for(int i=prompt_cursor; i<prompt_len; i++){
-		putchar('\b');
-	}
-	fflush(stdout);
-}
-
 static void move(int m){
 	if(!m)return;
 	if(m < 0){
@@ -142,6 +129,16 @@ static void move(int m){
 		}
 	}
 	prompt_cursor += m;
+}
+
+//redraw from cursor to the end
+static void redraw(){
+	int old = prompt_cursor;
+	move(prompt_len-prompt_cursor);
+	putchar(' ');
+	prompt_cursor++;
+	move(old-prompt_cursor);
+	fflush(stdout);
 }
 
 static int alpha_sort(const void *e1,const void *e2){

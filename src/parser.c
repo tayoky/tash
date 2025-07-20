@@ -376,6 +376,18 @@ int interpret_expr(source *src,int *is_last){
 				}
 				putback = tok;
 				continue;
+			case T_AND:
+			case T_OR:
+				src->op = tok->type;
+				destroy_token(tok);
+				//skip all boank lines for multi line
+				tok = get_token(src);
+				while(tok->type == T_SPACE || tok->type == T_NEWLINE){
+					destroy_token(tok);
+					tok = get_token(src);
+				}
+				putback = tok;
+				goto finish_skip_check;
 			case T_PIPE:
 				if(cmdv[cmdc-1].argc <= 0)syntax_error(tok);
 				destroy_token(tok);
@@ -406,7 +418,22 @@ int interpret_expr(source *src,int *is_last){
 		cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * cmdv[cmdc-1].argc);
 		cmdv[cmdc-1].argv[cmdv[cmdc-1].argc-1] = arg;
 	}
+
 finish:
+	if(src->op){
+		switch(src->op){
+		case T_AND:
+			src->op = 0;
+			if(exit_status != 0)goto ret;
+			break;
+		case T_OR:
+			src->op = 0;
+			if(exit_status == 0)goto ret;
+			break;
+		}
+	}
+
+finish_skip_check:
 	cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * (cmdv[cmdc-1].argc + 1));
 	cmdv[cmdc-1].argv[cmdv[cmdc-1].argc]= NULL;
 

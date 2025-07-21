@@ -153,6 +153,7 @@ token *next_token(source *src){
 }
 
 void destroy_token(token *t){
+	if(!t)return;
 	free(t->value);
 	free(t);
 }

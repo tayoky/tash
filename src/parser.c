@@ -16,14 +16,12 @@ struct cmd {
 	int out;
 };
 
-token *putback = NULL;
-
 int exit_status ;
 
 #define syntax_error(tok) {src->flags|=TASH_IGN_NL;\
 	error("syntax error near token %s",token_name(tok));\
 	if(tok->type == T_NEWLINE || tok->type == T_EOF){\
-		putback = tok;\
+		src->putback = tok;\
 	} else {\
 		destroy_token(tok);\
 	}\
@@ -31,9 +29,9 @@ int exit_status ;
 	return 0;}
 
 static token *get_token(source *src){
-	if(putback){
-		token *tok = putback;
-		putback = NULL;
+	if(src->putback){
+		token *tok = src->putback;
+		src->putback = NULL;
 		return tok;
 	}
 	return next_token(src);
@@ -45,7 +43,7 @@ static void skip_space(source *src){
 		destroy_token(tok);
 		tok = get_token(src);
 	}
-	putback = tok;
+	src->putback = tok;
 }
 
 static void subshell(source *src){
@@ -258,7 +256,7 @@ skip:
 		tok = get_token(src);
 	}
 end:
-	putback = tok;
+	src->putback = tok;
 	if(!has_str){
 		//we don't have a str return NULL
 		free(str);
@@ -332,7 +330,7 @@ int parse_pipeline(source *src){
 			}
 			break;
 		default:
-			putback = tok;
+			src->putback = tok;
 			goto finish;
 		}
 		destroy_token(tok);
@@ -463,13 +461,59 @@ ret:
 	goto ret;
 }
 
+static int tok2keyword(const token *tok){
+	if(tok->type != T_STR){
+		return 0;
+	} else if(!strcmp(tok->value,"if")){
+		return KEYWORD_IF;
+	} else if(!strcmp(tok->value,"else")){
+		return KEYWORD_ELSE;
+	} else if(!strcmp(tok->value,"elif")){
+		return KEYWORD_ELIF;
+	} else if(!strcmp(tok->value,"fi")){
+		return KEYWORD_FI;
+	} else if(!strcmp(tok->value,"then")){
+		return KEYWORD_THEN;
+	} else if(!strcmp(tok->value,"for")){
+		return KEYWORD_FOR;
+	} else if(!strcmp(tok->value,"in")){
+		return KEYWORD_IN;
+	} else if(!strcmp(tok->value,"do")){
+		return KEYWORD_DO;
+	} else if(!strcmp(tok->value,"done")){
+		return KEYWORD_DONE;
+	} else if(!strcmp(tok->value,"while")){
+		return KEYWORD_WHILE;
+	} else if(!strcmp(tok->value,"until")){
+		return KEYWORD_UNTIl;
+	} else if(!strcmp(tok->value,"case")){
+		return KEYWORD_CASE;
+	} else if(!strcmp(tok->value,"esac")){
+		return KEYWOED_ESAC;
+	} else {
+		return 0;
+	}
+}
+
+//return a buffer that contain everything until next keyword
+char *get_buffer(source *src){
+	token *prev = NULL;
+	for(;;){
+		token *tok = get_token(src);
+		destroy_token(prev);
+		prev = tok;
+	}
+}
+
 int interpret_expr(source *src,int *is_last){
 	*is_last = 0;
 	skip_space(src);
 	token *first = get_token(src);
-	if(first->type != T_STR){
-		putback = first;
-	} else if(!strcmp(first->value,"fi")){
+	switch(tok2keyword(first)){
+	case 0:
+		src->putback = first;
+		break;
+	case KEYWORD_FI:
 		destroy_token(first);
 		skip_space(src);
 		token *tok = get_token(src);
@@ -478,8 +522,8 @@ int interpret_expr(source *src,int *is_last){
 		}
 		destroy_token(tok);
 		return 0;
-	} else if (!strcmp(first->value,"else") || !strcmp(first->value,"elif")){
-		//else keyword
+	case KEYWORD_ELSE:
+	case KEYWORD_ELIF:
 		//skip until fi
 		size_t depth = 1;
 		token *prev = get_token(src);
@@ -498,13 +542,13 @@ int interpret_expr(source *src,int *is_last){
 			destroy_token(prev);
 			prev = tok;
 		}
-		putback = prev;
+		src->putback = prev;
 		return 0;
-	} else if (!strcmp(first->value,"if")){
-		//if keyword
+	case KEYWORD_IF:
 		src->if_depth++;
 		destroy_token(first);
-	}else if (!strcmp(first->value,"then")){
+		return 0;
+	case KEYWORD_THEN:
 		//then keyword
 		if(!src->if_depth){
 			syntax_error(first);
@@ -540,11 +584,10 @@ int interpret_expr(source *src,int *is_last){
 				destroy_token(prev);
 				return 0;
 			}
-			putback = prev;
+			src->putback = prev;
 			return 0;
 		}
-	} else {
-		putback = first;
+		break;
 	}
 
 	//if a open parenthese we can launch a subshell
@@ -553,7 +596,7 @@ int interpret_expr(source *src,int *is_last){
 		subshell(src);
 		return 0;
 	} else {
-		putback = first;
+		src->putback = first;
 	}
 
 	parse_pipeline(src);
@@ -569,7 +612,7 @@ int interpret_expr(source *src,int *is_last){
 	case T_CLOSE_PAREN:
 	case T_EOF:
 		*is_last = 1;
-		putback = tok;
+		src->putback = tok;
 		if((src->flags & TASH_IGN_NL) || (src->flags & TASH_IGN_EOF)){
 			src->flags &= ~(TASH_IGN_NL | TASH_IGN_EOF);
 			}
@@ -598,7 +641,7 @@ int interpret_expr(source *src,int *is_last){
 			destroy_token(tok);
 			tok = get_token(src);
 		}
-		putback = tok;
+		src->putback = tok;
 		break;
 	default:
 		syntax_error(tok);
@@ -627,7 +670,7 @@ int interpret(source *src){
 			destroy_token(tok);
 			break;
 		}
-		putback = tok;
+		src->putback = tok;
 		interpret_line(src);
 	}
 

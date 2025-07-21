@@ -24,6 +24,7 @@ typedef struct source {
 	size_t if_depth;
 	int op;
 	int flags;
+	token *putback;
 } source;
 
 #define T_NULL          0
@@ -50,9 +51,24 @@ typedef struct source {
 #define T_BACKSLASH    '\\'
 #define T_QUESTION_MARK '?'
 
+#define KEYWORD_IF     1
+#define KEYWORD_ELSE   2
+#define KEYWORD_ELIF   3
+#define KEYWORD_FI     4
+#define KEYWORD_THEN   5
+#define KEYWORD_FOR    6
+#define KEYWORD_IN     7
+#define KEYWORD_DO     8
+#define KEYWORD_DONE   9
+#define KEYWORD_WHILE  10
+#define KEYWORD_UNTIl  11
+#define KEYWORD_CASE   12
+#define KEYWOED_ESAC   13
+
 extern int _argc;
 extern char **_argv;
 extern int flags;
+extern int exit_status;
 #define TASH_LOGIN       (1 << 0)
 #define TASH_INTERACTIVE (1 << 1)
 #define TASH_NOPS        (1 << 2)

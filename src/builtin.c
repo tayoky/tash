@@ -69,7 +69,7 @@ int cd(int argc,char **argv){
 	} else {
 		const char *home = getenv("HOME");
 		if(!home){
-			error("HOME not set");
+			error("cd : HOME not set");
 			return 1;
 		}
 		if(chdir(home) < 0){
@@ -80,11 +80,38 @@ int cd(int argc,char **argv){
 	}
 }
 
+int src(int argc,char **argv){
+	//TODO : search in PATH first ???
+	if(argc < 2){
+		error("source : missing argument");
+		return 1;
+	}
+
+	FILE *script = fopen(argv[1],"r");
+	if(!script){
+		perror(argv[1]);
+		return 1;
+	}
+	//save argc/argv to restore after
+	int old_argc = _argc;
+	char **old_argv = _argv;
+	_argc = argc - 1;
+	_argv = &argv[1];
+	source src = SRC_FILE(script);
+	interpret(&src);
+	fclose(script);
+	_argc = old_argc;
+	_argv = old_argv;
+	return exit_status;
+}
+
 #define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
 static struct builtin builtin[] = {
-	CMD("cd",cd),
+	CMD("cd"    ,cd),
 	CMD("exit",exit_cmd),
 	CMD("export",export),
+	CMD("source",src),
+	CMD("."     ,src),
 };
 
 int check_builtin(int argc,char **argv){

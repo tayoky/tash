@@ -178,6 +178,10 @@ static char *get_string(source *src){
 	}
 	for(;;){
 	switch(tok->type){
+	case T_SPACE:
+		if(!has_str)goto skip;
+		goto end;
+		break;
 	case T_STR:
 		append(tok->value);
 		break;
@@ -267,7 +271,6 @@ int parse_pipeline(source *src){
 	struct cmd *cmdv = malloc(sizeof(struct cmd));
 	memset(cmdv,0,sizeof(struct cmd));
 	for(;;){
-		skip_space(src);
 		char *arg = get_string(src);
 		if(arg){
 			cmdv[cmdc-1].argc++;

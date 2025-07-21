@@ -262,213 +262,76 @@ end:
 	return str;
 }
 
-int interpret_expr(source *src,int *is_last){
-	*is_last = 0;
+int parse_pipeline(source *src){
 	int cmdc = 1;
 	struct cmd *cmdv = malloc(sizeof(struct cmd));
 	memset(cmdv,0,sizeof(struct cmd));
-	skip_space(src);
-	token *first = get_token(src);
-	if(first->type != T_STR){
-		putback = first;
-	} else if(!strcmp(first->value,"fi")){
-		destroy_token(first);
-		skip_space(src);
-		token *tok = get_token(src);
-		if(tok->type != T_SEMI_COLON && tok->type != T_NEWLINE){
-			syntax_error(tok);
-		}
-		destroy_token(tok);
-		return 0;
-	} else if (!strcmp(first->value,"else") || !strcmp(first->value,"elif")){
-		//else keyword
-		//skip until fi
-		size_t depth = 1;
-		token *prev = get_token(src);
-		while(depth){
-			token *tok = get_token(src);
-			if(tok->type == T_EOF){
-				destroy_token(prev);
-				syntax_error(tok);
-			} else if((prev->type == T_SEMI_COLON || prev->type == T_NEWLINE) && tok->type == T_STR){
-				if(!strcmp(tok->value,"if")){
-					depth++;
-				} else if(!strcmp(tok->value,"fi")){
-					depth--;
-				}
-			}
-			destroy_token(prev);
-			prev = tok;
-		}
-		putback = prev;
-		return 0;
-	} else if (!strcmp(first->value,"if")){
-		//if keyword
-		src->if_depth++;
-		destroy_token(first);
-	}else if (!strcmp(first->value,"then")){
-		//then keyword
-		if(!src->if_depth){
-			syntax_error(first);
-		}
-		src->if_depth--;
-		destroy_token(first);
-		if(exit_status != 0){
-			//skip until else
-			size_t depth = 1;
-			token *prev = get_token(src);
-			while(depth){
-				token *tok = get_token(src);
-				if(tok->type == T_EOF){
-					destroy_token(prev);
-					syntax_error(tok);
-				} else if((prev->type == T_SEMI_COLON || prev->type == T_NEWLINE) && tok->type == T_STR){
-					if(!strcmp(tok->value,"if")){
-						depth++;
-					} else if(!strcmp(tok->value,"fi") || (depth == 1 && (!strcmp(tok->value,"else") ||!strcmp(tok->value,"elif")))){
-						depth--;
-					}
-				}
-				destroy_token(prev);
-				prev = tok;
-			}
-			//don't putback else/elif
-			if(!strcmp(prev->value,"elif")){
-				destroy_token(prev);
-				src->if_depth++;
-				return 0;
-			}
-			if(!strcmp(prev->value,"else")){
-				destroy_token(prev);
-				return 0;
-			}
-			putback = prev;
-			return 0;
-		}
-	} else {
-		putback = first;
-	}
-
-	//if a open parenthese we can launch a subshell
-	first = get_token(src);
-	if(first->type == T_OPEN_PAREN){
-		subshell(src);
-		return 0;
-	} else {
-		putback = first;
-	}
-
 	for(;;){
 		skip_space(src);
 		char *arg = get_string(src);
-		if(!arg){
-			//not a string what it is ?
-			token *tok = get_token(src);
-			switch(tok->type){
-			case T_SEMI_COLON:
-				//todo : check somthing else 
-				//to allow empty command with redir
-				if(!cmdv[cmdc-1].argc)syntax_error(tok);
-				destroy_token(tok);
-				goto finish;
-			case T_CLOSE_PAREN:
-			case T_EOF:
-				*is_last = 1;
-				putback = tok;
-				if((src->flags & TASH_IGN_NL) || (src->flags & TASH_IGN_EOF)){
-					src->flags &= ~(TASH_IGN_NL | TASH_IGN_EOF);
-					goto ret;
-				}
-				goto finish;
-			case T_NEWLINE:
-				*is_last = 1;
-				destroy_token(tok);
-				if(src->flags & TASH_IGN_NL){
-					src->flags &= ~TASH_IGN_NL;
-					goto ret;
-				}
-				goto finish;
-			case T_INFERIOR:
-				if(cmdv[cmdc-1].in)close(cmdv[cmdc-1].in);
-				destroy_token(tok);
-				skip_space(src);
-				tok = get_token(src);
-				if(tok->type != T_STR)syntax_error(tok);
-				cmdv[cmdc-1].in = open(tok->value,O_RDONLY);
-				if(cmdv[cmdc-1].in < 0){
-					exit_status = 1;
-					perror(tok->value);
-					src->flags |= TASH_IGN_NL;
-				}
-				destroy_token(tok);
-
-				continue;
-			case T_SUPERIOR:
-			case T_APPEND:
-				if(cmdv[cmdc-1].out)close(cmdv[cmdc-1].out);
-				int oflags = tok->type == T_APPEND ? O_APPEND : O_TRUNC;
-				destroy_token(tok);
-				skip_space(src);
-				tok = get_token(src);
-				if(tok->type != T_STR)syntax_error(tok);
-				cmdv[cmdc-1].out = open(tok->value,O_WRONLY | O_CREAT | oflags,S_IWUSR | S_IRUSR);
-				if(cmdv[cmdc-1].out < 0){
-					perror(tok->value);
-					return 0;
-				}
-				destroy_token(tok);
-
-				continue;
-			case T_HASH:
-				while(tok->type != T_NEWLINE && tok->type != T_EOF){
-					destroy_token(tok);
-					tok = get_token(src);
-				}
-				putback = tok;
-				continue;
-			case T_AND:
-			case T_OR:
-				src->op = tok->type;
-				destroy_token(tok);
-				//skip all boank lines for multi line
-				tok = get_token(src);
-				while(tok->type == T_SPACE || tok->type == T_NEWLINE){
-					destroy_token(tok);
-					tok = get_token(src);
-				}
-				putback = tok;
-				goto finish_skip_check;
-			case T_PIPE:
-				if(cmdv[cmdc-1].argc <= 0)syntax_error(tok);
-				destroy_token(tok);
-				//finish old command
-				cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * (cmdv[cmdc-1].argc + 1));
-				cmdv[cmdc-1].argv[cmdv[cmdc-1].argc]= NULL;
-				//and createa new one
-				cmdc++;
-				cmdv = realloc(cmdv,cmdc * sizeof(struct cmd));
-				memset(&cmdv[cmdc-1],0,sizeof(struct cmd));
-				int pipefd[2];
-				if(pipe(pipefd) < 0){
-					perror("pipe");
-				} else {
-					if(cmdv[cmdc-2].out){
-						close(pipefd[1]);
-					} else {
-						cmdv[cmdc-2].out = pipefd[1];
-					}
-					cmdv[cmdc-1].in = pipefd[0];
-				}
-				continue;
-			default:
-				syntax_error(tok);
-			}
-			destroy_token(tok);
-
+		if(arg){
+			cmdv[cmdc-1].argc++;
+			cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * cmdv[cmdc-1].argc);
+			cmdv[cmdc-1].argv[cmdv[cmdc-1].argc-1] = arg;
+			continue;
 		}
-		cmdv[cmdc-1].argc++;
-		cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * cmdv[cmdc-1].argc);
-		cmdv[cmdc-1].argv[cmdv[cmdc-1].argc-1] = arg;
+		//not a string what it is ?
+		token *tok = get_token(src);
+		switch(tok->type){
+		case T_INFERIOR:
+			if(cmdv[cmdc-1].in)close(cmdv[cmdc-1].in);
+			destroy_token(tok);
+			skip_space(src);
+			tok = get_token(src);
+			if(tok->type != T_STR)syntax_error(tok);
+			cmdv[cmdc-1].in = open(tok->value,O_RDONLY);
+			if(cmdv[cmdc-1].in < 0){
+				exit_status = 1;
+				perror(tok->value);
+				src->flags |= TASH_IGN_NL;
+			}
+			break;
+		case T_SUPERIOR:
+		case T_APPEND:
+			if(cmdv[cmdc-1].out)close(cmdv[cmdc-1].out);
+			int oflags = tok->type == T_APPEND ? O_APPEND : O_TRUNC;
+			destroy_token(tok);
+			skip_space(src);
+			tok = get_token(src);
+			if(tok->type != T_STR)syntax_error(tok);
+			cmdv[cmdc-1].out = open(tok->value,O_WRONLY | O_CREAT | oflags,S_IWUSR | S_IRUSR);
+			if(cmdv[cmdc-1].out < 0){
+				exit_status = 1;
+				perror(tok->value);
+				src->flags |= TASH_IGN_NL;
+			}
+			break;
+		case T_PIPE:
+			if(cmdv[cmdc-1].argc <= 0)syntax_error(tok);
+			//finish old command
+			cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * (cmdv[cmdc-1].argc + 1));
+			cmdv[cmdc-1].argv[cmdv[cmdc-1].argc]= NULL;
+			//and createa new one
+			cmdc++;
+			cmdv = realloc(cmdv,cmdc * sizeof(struct cmd));
+			memset(&cmdv[cmdc-1],0,sizeof(struct cmd));
+			int pipefd[2];
+			if(pipe(pipefd) < 0){
+				perror("pipe");
+			} else {
+				if(cmdv[cmdc-2].out){
+					close(pipefd[1]);
+				} else {
+					cmdv[cmdc-2].out = pipefd[1];
+				}
+				cmdv[cmdc-1].in = pipefd[0];
+			}
+			break;
+		default:
+			putback = tok;
+			goto finish;
+		}
+		destroy_token(tok);
 	}
 
 finish:
@@ -485,7 +348,6 @@ finish:
 		}
 	}
 
-finish_skip_check:
 	cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * (cmdv[cmdc-1].argc + 1));
 	cmdv[cmdc-1].argv[cmdv[cmdc-1].argc]= NULL;
 
@@ -595,6 +457,150 @@ ret:
 	}
 
 	goto ret;
+}
+
+int interpret_expr(source *src,int *is_last){
+	*is_last = 0;
+	skip_space(src);
+	token *first = get_token(src);
+	if(first->type != T_STR){
+		putback = first;
+	} else if(!strcmp(first->value,"fi")){
+		destroy_token(first);
+		skip_space(src);
+		token *tok = get_token(src);
+		if(tok->type != T_SEMI_COLON && tok->type != T_NEWLINE){
+			syntax_error(tok);
+		}
+		destroy_token(tok);
+		return 0;
+	} else if (!strcmp(first->value,"else") || !strcmp(first->value,"elif")){
+		//else keyword
+		//skip until fi
+		size_t depth = 1;
+		token *prev = get_token(src);
+		while(depth){
+			token *tok = get_token(src);
+			if(tok->type == T_EOF){
+				destroy_token(prev);
+				syntax_error(tok);
+			} else if((prev->type == T_SEMI_COLON || prev->type == T_NEWLINE) && tok->type == T_STR){
+				if(!strcmp(tok->value,"if")){
+					depth++;
+				} else if(!strcmp(tok->value,"fi")){
+					depth--;
+				}
+			}
+			destroy_token(prev);
+			prev = tok;
+		}
+		putback = prev;
+		return 0;
+	} else if (!strcmp(first->value,"if")){
+		//if keyword
+		src->if_depth++;
+		destroy_token(first);
+	}else if (!strcmp(first->value,"then")){
+		//then keyword
+		if(!src->if_depth){
+			syntax_error(first);
+		}
+		src->if_depth--;
+		destroy_token(first);
+		if(exit_status != 0){
+			//skip until else
+			size_t depth = 1;
+			token *prev = get_token(src);
+			while(depth){
+				token *tok = get_token(src);
+				if(tok->type == T_EOF){
+					destroy_token(prev);
+					syntax_error(tok);
+				} else if((prev->type == T_SEMI_COLON || prev->type == T_NEWLINE) && tok->type == T_STR){
+					if(!strcmp(tok->value,"if")){
+						depth++;
+					} else if(!strcmp(tok->value,"fi") || (depth == 1 && (!strcmp(tok->value,"else") ||!strcmp(tok->value,"elif")))){
+						depth--;
+					}
+				}
+				destroy_token(prev);
+				prev = tok;
+			}
+			//don't putback else/elif
+			if(!strcmp(prev->value,"elif")){
+				destroy_token(prev);
+				src->if_depth++;
+				return 0;
+			}
+			if(!strcmp(prev->value,"else")){
+				destroy_token(prev);
+				return 0;
+			}
+			putback = prev;
+			return 0;
+		}
+	} else {
+		putback = first;
+	}
+
+	//if a open parenthese we can launch a subshell
+	first = get_token(src);
+	if(first->type == T_OPEN_PAREN){
+		subshell(src);
+		return 0;
+	} else {
+		putback = first;
+	}
+
+	parse_pipeline(src);
+
+	token * tok = get_token(src);
+
+	//TODO check for empty command ???
+
+	switch(tok->type){
+	case T_SEMI_COLON:
+		destroy_token(tok);
+		break;
+	case T_CLOSE_PAREN:
+	case T_EOF:
+		*is_last = 1;
+		putback = tok;
+		if((src->flags & TASH_IGN_NL) || (src->flags & TASH_IGN_EOF)){
+			src->flags &= ~(TASH_IGN_NL | TASH_IGN_EOF);
+			}
+		break;
+	case T_HASH:
+		while(tok->type != T_NEWLINE && tok->type != T_EOF){
+			destroy_token(tok);
+			tok = get_token(src);
+		}
+		destroy_token(tok);
+		break;
+	case T_NEWLINE:
+		*is_last = 1;
+		destroy_token(tok);
+		if(src->flags & TASH_IGN_NL){
+			src->flags &= ~TASH_IGN_NL;
+		}
+		break;
+	case T_AND:
+	case T_OR:
+		src->op = tok->type;
+		destroy_token(tok);
+		//skip all boank lines for multi line
+		tok = get_token(src);
+		while(tok->type == T_SPACE || tok->type == T_NEWLINE){
+			destroy_token(tok);
+			tok = get_token(src);
+		}
+		putback = tok;
+		break;
+	default:
+		syntax_error(tok);
+	}
+
+	return 0;
 }
 
 void interpret_line(source *src){

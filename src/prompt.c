@@ -15,6 +15,7 @@ char prompt_buf[256];
 int prompt_cursor = 0;
 int prompt_index  = 0;
 int prompt_len = 0;
+const char *last_prompt;
 
 static void show_cwd(void){
 	char cwd[256];
@@ -38,6 +39,7 @@ static void show_cwd(void){
 }
 
 static void show_prompt(const char *ps){
+	last_prompt = ps;
 	time_t t = time(NULL);
 	struct tm tm;
 	localtime_r(&t,&tm);
@@ -119,6 +121,10 @@ void show_ps2(void){
 
 static void move(int m){
 	if(!m)return;
+	struct winsize win;
+	if(ioctl(STDOUT_FILENO,TIOCGWINSZ,&win) < 0){
+		win.ws_col = 80;
+	}
 	if(m < 0){
 		for(int i=0; i>m; i--){
 			putchar('\b');
@@ -133,10 +139,11 @@ static void move(int m){
 
 //redraw from cursor to the end
 static void redraw(){
+	//put a space at the end
+	//which allow to clear one char further
+	prompt_buf[prompt_len] = ' ';
 	int old = prompt_cursor;
-	move(prompt_len-prompt_cursor);
-	putchar(' ');
-	prompt_cursor++;
+	move(prompt_len-prompt_cursor+1);
 	move(old-prompt_cursor);
 	fflush(stdout);
 }
@@ -311,7 +318,7 @@ int prompt_getc(void){
 				}
 
 				putchar('\n');
-				show_ps1();
+				show_prompt(last_prompt);
 				int old_cursor = prompt_cursor;
 				prompt_cursor = 0;
 				redraw();

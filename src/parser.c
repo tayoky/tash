@@ -163,6 +163,7 @@ static char *parse_var(source *src){
 }
 
 static char *get_string(source *src){
+	skip_space(src);
 	token *tok = get_token(src);
 	char *str = strdup("");
 	size_t len = 1;

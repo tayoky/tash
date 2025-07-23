@@ -11,18 +11,6 @@ char **_argv;
 	continue;\
 }
 
-int buf_getc(unsigned char **buf){
-	int c = **buf;
-	if(!c)return EOF;
-	(*buf)++;
-	return c;
-}
-
-void buf_unget(int c,char **buf){
-	if(c == EOF)return;
-	(*buf)--;
-}
-
 int main(int argc,char **argv){
 	//parse args and set flags
 	flags = 0 ;
@@ -66,13 +54,8 @@ int main(int argc,char **argv){
 			return 1;
 		}
 		init();
-		source src = {
-			.data = &argv[i+1],
-			.getc = (void*)buf_getc,
-			.unget = (void *)buf_unget,
-		};
 		
-		return interpret(&src);
+		return eval(argv[2],TASH_NOPS);
 	} else if(argc - i >= 1){
 		//shell launched with script or option
 		if(!strcmp(argv[i],"--version")){

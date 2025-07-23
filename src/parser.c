@@ -429,7 +429,6 @@ ret:
 		to_wait++;
 		
 	}
-	exit_status = 2;
 
 	//a bit of cleanup so pipes get closed
 	for(int i=0;i<cmdc;i++){
@@ -440,6 +439,7 @@ ret:
 	}
 
 	if(!to_wait)goto ret;
+	exit_status = 2;
 
 	if(!(src->flags & TASH_NOPS) && tcsetpgrp(STDIN_FILENO,leader) < 0){
 		perror("tcsetpgrp");
@@ -495,16 +495,81 @@ static int tok2keyword(const token *tok){
 	}
 }
 
-//return a buffer that contain everything until next keyword
-char *get_buffer(source *src){
-	token *prev = NULL;
-	for(;;){
-		token *tok = get_token(src);
-		destroy_token(prev);
-		prev = tok;
+//return 1 if good
+static int expect_keyword(source *src,int type){
+	token *tok = get_token(src);
+	if(tok2keyword(tok) != type){
+		syntax_error(tok);
 	}
+	return 1;
 }
 
+
+#define GETBUF() buf  = get_buffer(src);\
+	if(!buf){\
+		free(str);\
+		return NULL;\
+	}
+//return a buffer that contain everything until next keyword
+char *get_buffer(source *src){
+	char *str = strdup("");
+	size_t len = 0;
+	for(;;){
+		token *tok = get_token(src);
+		append(token2str(tok));
+		if(tok->type == T_NEWLINE || tok->type == T_SEMI_COLON){
+			skip_space(src);
+			token *next = get_token(src);
+			char *buf;
+			switch(tok2keyword(next)){
+			case 0:
+				break;
+			case KEYWORD_IF:
+				GETBUF()
+				if(!expect_keyword(src,KEYWORD_THEN)){
+					free(buf);
+					return NULL;
+				}
+				for(;;){
+					GETBUF()
+					token *t = get_token(src);
+					switch(tok2keyword(t)){
+					case KEYWORD_ELIF:
+					
+						break;
+					case KEYWORD_ELSE:
+						GETBUF();
+						if(!expect_keyword(src,KEYWORD_FI)){
+							free(buf);
+							return NULL;
+						}
+						goto finish_keyword;
+					case KEYWORD_FI:
+						goto finish_keyword;
+						break;
+					}
+				}
+				break;
+			default:
+				destroy_token(tok);
+				src->putback = next;
+				goto finish;
+				break;
+			}
+finish_keyword:
+			append(token2str(next));
+			destroy_token(next);
+		}
+		if(tok->type == T_NEWLINE && !(src->flags & TASH_NOPS)){
+			show_ps2();
+		}
+		destroy_token(tok);
+	}
+finish:
+	return str;
+}
+
+//TODO : error handling for NULL buffer in if
 int interpret_expr(source *src,int *is_last){
 	*is_last = 0;
 	skip_space(src);
@@ -513,81 +578,55 @@ int interpret_expr(source *src,int *is_last){
 	case 0:
 		src->putback = first;
 		break;
-	case KEYWORD_FI:
-		destroy_token(first);
-		skip_space(src);
-		token *tok = get_token(src);
-		if(tok->type != T_SEMI_COLON && tok->type != T_NEWLINE){
-			syntax_error(tok);
-		}
-		destroy_token(tok);
-		return 0;
-	case KEYWORD_ELSE:
-	case KEYWORD_ELIF:
-		//skip until fi
-		size_t depth = 1;
-		token *prev = get_token(src);
-		while(depth){
-			token *tok = get_token(src);
-			if(tok->type == T_EOF){
-				destroy_token(prev);
-				syntax_error(tok);
-			} else if((prev->type == T_SEMI_COLON || prev->type == T_NEWLINE) && tok->type == T_STR){
-				if(!strcmp(tok->value,"if")){
-					depth++;
-				} else if(!strcmp(tok->value,"fi")){
-					depth--;
-				}
-			}
-			destroy_token(prev);
-			prev = tok;
-		}
-		src->putback = prev;
-		return 0;
 	case KEYWORD_IF:
-		src->if_depth++;
 		destroy_token(first);
-		return 0;
-	case KEYWORD_THEN:
-		//then keyword
-		if(!src->if_depth){
-			syntax_error(first);
-		}
-		src->if_depth--;
-		destroy_token(first);
-		if(exit_status != 0){
-			//skip until else
-			size_t depth = 1;
-			token *prev = get_token(src);
-			while(depth){
-				token *tok = get_token(src);
-				if(tok->type == T_EOF){
-					destroy_token(prev);
-					syntax_error(tok);
-				} else if((prev->type == T_SEMI_COLON || prev->type == T_NEWLINE) && tok->type == T_STR){
-					if(!strcmp(tok->value,"if")){
-						depth++;
-					} else if(!strcmp(tok->value,"fi") || (depth == 1 && (!strcmp(tok->value,"else") ||!strcmp(tok->value,"elif")))){
-						depth--;
-					}
-				}
-				destroy_token(prev);
-				prev = tok;
-			}
-			//don't putback else/elif
-			if(!strcmp(prev->value,"elif")){
-				destroy_token(prev);
-				src->if_depth++;
-				return 0;
-			}
-			if(!strcmp(prev->value,"else")){
-				destroy_token(prev);
-				return 0;
-			}
-			src->putback = prev;
+		char *condition = get_buffer(src);
+		if(!expect_keyword(src,KEYWORD_THEN)){
+			free(condition);
 			return 0;
 		}
-		break;
+		char *content = get_buffer(src);
+		if(eval(condition,src->flags | TASH_NOPS) == 0){
+			eval(content,src->flags | TASH_NOPS);
+		}
+		free(condition);
+		free(content);
+		for(;;){
+		token *next = get_token(src);
+		switch(tok2keyword(next)){
+		case KEYWORD_FI:
+			destroy_token(first);
+			return 0;
+		case KEYWORD_ELIF:
+			condition = get_buffer(src);
+			if(!expect_keyword(src,KEYWORD_THEN)){
+				free(condition);
+				destroy_token(first);
+				return 0;
+			}
+			content = get_buffer(src);
+			if(exit_status != 0 && eval(condition,src->flags | TASH_NOPS) == 0){
+				eval(content,src->flags | TASH_NOPS);
+			}
+			free(condition);
+			free(content);
+			break;
+		case KEYWORD_ELSE:
+			destroy_token(next);
+			content = get_buffer(src);
+			if(!expect_keyword(src,KEYWORD_FI)){
+				free(content);
+				return 0;
+			}
+			if(exit_status != 0){
+				eval(content,src->flags | TASH_NOPS);
+			}
+			return 0;
+		default:
+			syntax_error(next);
+		}
+		destroy_token(next);
+		}
 	}
 
 	//if a open parenthese we can launch a subshell
@@ -675,4 +714,27 @@ int interpret(source *src){
 	}
 
 	return 0;
+}
+
+static int buf_getc(unsigned char **buf){
+	int c = **buf;
+	if(!c)return EOF;
+	(*buf)++;
+	return c;
+}
+
+static void buf_unget(int c,char **buf){
+	if(c == EOF)return;
+	(*buf)--;
+}
+
+int eval(const char *str,int flags){	
+	source src = {
+		.data = &str,
+		.getc = (void*)buf_getc,
+		.unget = (void *)buf_unget,
+		.flags = flags,
+	};
+	interpret(&src);
+	return exit_status;
 }

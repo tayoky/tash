@@ -88,6 +88,7 @@ const char *token2str(token *);
 int check_builtin(int argc,char **argv);
 
 int interpret(source *src);
+int eval(const char *str,int flags);
 
 void show_ps1(void);
 void show_ps2(void);

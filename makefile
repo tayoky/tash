@@ -20,7 +20,7 @@ test : $(BUILDDIR)/tash
 $(BUILDDIR)/tash : $(OBJ)
 	@echo '[linking into $@]'
 	@mkdir -p $(shell dirname $@)
-	@$(CC) -o $@ $^
+	@$(CC) -o $@ $^ $(CFLAGS)
 
 
 $(BUILDDIR)/%.o : $(SRCDIR)/%.c 

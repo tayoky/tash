@@ -53,9 +53,10 @@ static void subshell(source *src){
 	src->flags = old;
 }
 
-#define append(s) len += strlen(s);\
+#define append(s) {const char *__str = s;\
+	len += strlen(__str);\
 		str = realloc(str,len);\
-		strcat(str,s);
+		strcat(str,__str);}
 
 static char *parse_var(source *src){
 	//first check for single digit
@@ -265,7 +266,7 @@ end:
 	return str;
 }
 
-int parse_pipeline(source *src){
+static int parse_pipeline(source *src){
 	int cmdc = 1;
 	struct cmd *cmdv = malloc(sizeof(struct cmd));
 	memset(cmdv,0,sizeof(struct cmd));
@@ -509,56 +510,62 @@ static int expect_keyword(source *src,int type){
 	if(!buf){\
 		free(str);\
 		return NULL;\
-	}
+	}\
+	append(buf);\
+	free(buf);
 //return a buffer that contain everything until next keyword
-char *get_buffer(source *src){
+static char *get_buffer(source *src){
 	char *str = strdup("");
-	size_t len = 0;
+	size_t len = 1;
+	int prev_is_sep = 1;
 	for(;;){
 		token *tok = get_token(src);
-		append(token2str(tok));
-		if(tok->type == T_NEWLINE || tok->type == T_SEMI_COLON){
-			skip_space(src);
-			token *next = get_token(src);
+		//puts(token2str(tok));
+		if(tok->type == T_SPACE){
+			append(token2str(tok));
+			destroy_token(tok);
+			continue;
+		}
+		if(prev_is_sep){
+			prev_is_sep = 0;
 			char *buf;
-			switch(tok2keyword(next)){
+			switch(tok2keyword(tok)){
 			case 0:
-				break;
+				goto cont;
 			case KEYWORD_IF:
+				append(token2str(tok));
 				GETBUF()
 				if(!expect_keyword(src,KEYWORD_THEN)){
-					free(buf);
+					free(str);
 					return NULL;
 				}
+				append("then");
+				//we will already do syntax when interpreting the if
+				//so just continue unti fi
 				for(;;){
 					GETBUF()
 					token *t = get_token(src);
-					switch(tok2keyword(t)){
-					case KEYWORD_ELIF:
-					
-						break;
-					case KEYWORD_ELSE:
-						GETBUF();
-						if(!expect_keyword(src,KEYWORD_FI)){
-							free(buf);
-							return NULL;
-						}
-						goto finish_keyword;
-					case KEYWORD_FI:
-						goto finish_keyword;
+					append(token2str(t));
+					if(tok2keyword(t) == KEYWORD_FI){
+						destroy_token(t);
 						break;
 					}
+					destroy_token(t);
+
 				}
 				break;
 			default:
-				destroy_token(tok);
-				src->putback = next;
+				src->putback = tok;
 				goto finish;
-				break;
 			}
 finish_keyword:
-			append(token2str(next));
-			destroy_token(next);
+			destroy_token(tok);
+			continue;
+		}
+cont:
+		append(token2str(tok));
+		if(tok->type == T_NEWLINE || tok->type == T_SEMI_COLON){
+			prev_is_sep = 1;
 		}
 		if(tok->type == T_NEWLINE && !(src->flags & TASH_NOPS)){
 			show_ps2();
@@ -570,7 +577,7 @@ finish:
 }
 
 //TODO : error handling for NULL buffer in if
-int interpret_expr(source *src,int *is_last){
+static int interpret_expr(source *src,int *is_last){
 	*is_last = 0;
 	skip_space(src);
 	token *first = get_token(src);
@@ -586,6 +593,7 @@ int interpret_expr(source *src,int *is_last){
 			return 0;
 		}
 		char *content = get_buffer(src);
+		//printf("condition : '%s'\ncontent : '%s'\n",condition,content);
 		if(eval(condition,src->flags | TASH_NOPS) == 0){
 			eval(content,src->flags | TASH_NOPS);
 		}
@@ -595,13 +603,11 @@ int interpret_expr(source *src,int *is_last){
 		token *next = get_token(src);
 		switch(tok2keyword(next)){
 		case KEYWORD_FI:
-			destroy_token(first);
 			return 0;
 		case KEYWORD_ELIF:
 			condition = get_buffer(src);
 			if(!expect_keyword(src,KEYWORD_THEN)){
 				free(condition);
-				destroy_token(first);
 				return 0;
 			}
 			content = get_buffer(src);
@@ -689,7 +695,7 @@ int interpret_expr(source *src,int *is_last){
 	return 0;
 }
 
-void interpret_line(source *src){
+static void interpret_line(source *src){
 	//if is_last is set
 	//that mean that was the expr of the line
 	int is_last = 0;

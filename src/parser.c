@@ -241,12 +241,14 @@ static char *get_string(source *src){
 		append(val);
 		free(val);
 		break;
-	case T_BACKSLASH:
-		destroy_token(tok);
-		tok = get_token(src);
-		if(tok->type == T_EOF)syntax_error(tok);
-		if(tok->type == T_NEWLINE)break;
-		append(token2str(tok));
+	case T_BACKSLASH:;
+		int c = src->getc(src->data);
+		if(c == '\r') c = src->getc(src->data);
+		if(c == EOF)break;
+		if(c == '\n')break;
+		static char s[2] = {'\0','\0'};
+		s[0] = c;
+		append(s);
 		break;
 	default:
 		goto end;

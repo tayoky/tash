@@ -150,10 +150,6 @@ static char *parse_var(source *src){
 			return strdup("");
 		}
 		buf[size] = '\0';
-		//replace newline with space
-		while(strchr(buf,'\n')){
-			*strchr(buf,'\n') = ' ';
-		}
 		close(pipefd[0]);
 		return strdup(buf);
 	default:
@@ -238,6 +234,7 @@ static char *get_string(source *src){
 			free(val);
 			goto skip;
 		}
+		//TODO : cut the thing
 		append(val);
 		free(val);
 		break;
@@ -488,7 +485,7 @@ static int tok2keyword(const token *tok){
 	} else if(!strcmp(tok->value,"while")){
 		return KEYWORD_WHILE;
 	} else if(!strcmp(tok->value,"until")){
-		return KEYWORD_UNTIl;
+		return KEYWORD_UNTIL;
 	} else if(!strcmp(tok->value,"case")){
 		return KEYWORD_CASE;
 	} else if(!strcmp(tok->value,"esac")){
@@ -534,6 +531,22 @@ static char *get_buffer(source *src){
 			switch(tok2keyword(tok)){
 			case 0:
 				goto cont;
+			case KEYWORD_WHILE:
+			case KEYWORD_UNTIL:
+				append(token2str(tok));
+				GETBUF()
+				if(!expect_keyword(src,KEYWORD_DO)){
+					free(str);
+					return NULL;
+				}
+				append("do");
+				GETBUF()
+				if(!expect_keyword(src,KEYWORD_DONE)){
+					free(str);
+					return NULL;
+				}
+				append("done");
+				break;
 			case KEYWORD_IF:
 				append(token2str(tok));
 				GETBUF()
@@ -584,17 +597,44 @@ static int interpret_expr(source *src,int *is_last){
 	skip_space(src);
 	token *first = get_token(src);
 	switch(tok2keyword(first)){
+		char *condition;
+		char *content;
 	case 0:
 		src->putback = first;
 		break;
+	case KEYWORD_WHILE:
+	case KEYWORD_UNTIL:
+		condition = get_buffer(src);
+		if(!expect_keyword(src,KEYWORD_DO)){
+			free(condition);
+			destroy_token(first);
+			return 0;
+		}
+		content = get_buffer(src);
+		if(!expect_keyword(src,KEYWORD_DONE)){
+			free(condition);
+			destroy_token(first);
+			return 0;
+		}
+		if(tok2keyword(first) == KEYWORD_UNTIL){
+			while(eval(condition,src->flags | TASH_NOPS) != 0){
+				eval(content,src->flags | TASH_NOPS);
+			}
+		} else {
+			while(eval(condition,src->flags | TASH_NOPS) == 0){
+				eval(content,src->flags | TASH_NOPS);
+			}
+		}
+		destroy_token(first);
+		return 0;
 	case KEYWORD_IF:
 		destroy_token(first);
-		char *condition = get_buffer(src);
+		condition = get_buffer(src);
 		if(!expect_keyword(src,KEYWORD_THEN)){
 			free(condition);
 			return 0;
 		}
-		char *content = get_buffer(src);
+		content = get_buffer(src);
 		//printf("condition : '%s'\ncontent : '%s'\n",condition,content);
 		if(eval(condition,src->flags | TASH_NOPS) == 0){
 			eval(content,src->flags | TASH_NOPS);

@@ -61,7 +61,7 @@ typedef struct source {
 #define KEYWORD_DO     8
 #define KEYWORD_DONE   9
 #define KEYWORD_WHILE  10
-#define KEYWORD_UNTIl  11
+#define KEYWORD_UNTIL  11
 #define KEYWORD_CASE   12
 #define KEYWOED_ESAC   13
 

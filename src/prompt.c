@@ -89,7 +89,7 @@ static void show_prompt(const char *ps){
 				break;
 			case 'u':
 				if(getenv("LOGNAME"))printf("%s",getenv("LOGNAME"));
-				printf("user");
+				//TODO : use pwd ?
 				break;
 			case '$':
 				putchar(geteuid() == 0 ? '#' : '$');

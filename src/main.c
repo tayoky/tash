@@ -30,7 +30,12 @@ int main(int argc,char **argv){
 			opt++;
 			OPT("login",TASH_LOGIN);
 			OPT("interactive",TASH_INTERACTIVE);
-			continue;
+			if(!strcmp(opt,"version")){
+				printf("tash %s by tayoky\n",TASH_VERSION);
+				return 0;
+			}
+			error("unknow option '--%s' (see --help)",opt);
+			return 1;
 		}
 		while(*opt){
 			switch(*opt){
@@ -41,7 +46,7 @@ int main(int argc,char **argv){
 				flags |= TASH_INTERACTIVE;
 				break;
 			default:
-				error("unknow option %c (see --help)",*opt);
+				error("unknow option '%c' (see --help)",*opt);
 				return 1;
 			}
 			opt++;
@@ -58,10 +63,6 @@ int main(int argc,char **argv){
 		return eval(argv[2],TASH_NOPS);
 	} else if(argc - i >= 1){
 		//shell launched with script or option
-		if(!strcmp(argv[i],"--version")){
-			printf("tash %s by tayoky\n",TASH_VERSION);
-			return 0;
-		}
 		//in script mode remove everything before script name from arguement
 		_argc = argc - i;
 		_argv = &argv[i];

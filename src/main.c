@@ -11,6 +11,16 @@ char **_argv;
 	continue;\
 }
 
+void help(void){
+	puts("usage : tash [OPTIONS] [SCRIPT] [ARGUMENTS]...");
+	puts("Without SCRIPT d ARGUMENTS, tash will launch a shell.");
+	puts("If SCRIPT is provided tash will execute the specified script");
+	puts("-i, --interactive : launch an interactive shell");
+	puts("-l, --login       : same effect as if argv[0][0] == '-', make the lauched shell a login shell");
+	puts("--help            : show this help");
+	puts("--version         : print tash version");
+}
+
 int main(int argc,char **argv){
 	//parse args and set flags
 	flags = 0 ;
@@ -32,6 +42,10 @@ int main(int argc,char **argv){
 			OPT("interactive",TASH_INTERACTIVE);
 			if(!strcmp(opt,"version")){
 				printf("tash %s by tayoky\n",TASH_VERSION);
+				return 0;
+			}
+			if(!strcmp(opt,"help")){
+				help();
 				return 0;
 			}
 			error("unknow option '--%s' (see --help)",opt);

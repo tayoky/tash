@@ -157,7 +157,10 @@ static char *parse_var(source *src){
 	}
 }
 
-static char *get_string(source *src){
+//TODO : this func need some refactoring
+static char **get_strings(source *src,size_t *count){
+	*count = 0;
+	char **table = malloc(sizeof(char *));
 	skip_space(src);
 	token *tok = get_token(src);
 	char *str = strdup("");
@@ -177,7 +180,6 @@ static char *get_string(source *src){
 	case T_SPACE:
 		if(!has_str)goto skip;
 		goto end;
-		break;
 	case T_STR:
 		append(tok->value);
 		break;
@@ -226,7 +228,6 @@ static char *get_string(source *src){
 		
 		}
 		break;
-		break;
 	case T_DOLLAR:;
 		char *val = parse_var(src);
 		if(!val)goto skip;
@@ -234,8 +235,41 @@ static char *get_string(source *src){
 			free(val);
 			goto skip;
 		}
-		//TODO : cut the thing
-		append(val);
+		//cut the thing
+		size_t i = 0;
+		ssize_t index = -1;
+		for(;val[i];i++){
+			if(val[i] == ' ' || val[i] == '\n'){
+				val[i] = '\0';
+				if(index >= 0){
+					if(index != 0){
+						//more than one arg, we need to make list bigger
+
+						(*count)++;
+						table = realloc(table,sizeof(char *) * (1 + *count));
+						table[*count-1] = str;
+						str = strdup(&val[index]);
+					} else {
+						append(&val[index]);
+					}
+					index = -1;
+				}
+			} else if(index == -1){
+				index = i;
+			}
+		}
+		if(index >= 0){
+			if(index != 0){
+				//more than one arg, we need to make list bigger
+				(*count)++;
+				table = realloc(table,sizeof(char *) * (1 + *count));
+				table[*count-1] = str;
+				str = strdup(&val[index]);
+			} else {
+				append(&val[index]);
+			}
+			index = -1;
+		}
 		free(val);
 		break;
 	case T_BACKSLASH:;
@@ -257,12 +291,18 @@ skip:
 	}
 end:
 	src->putback = tok;
-	if(!has_str){
-		//we don't have a str return NULL
+	if(has_str){
+		//TODO : make table bigger
+		table[*count] = str;
+		(*count)++;
+	} else {
 		free(str);
+	}
+	if(!*count){
+		free(table);
 		return NULL;
 	}
-	return str;
+	return table;
 }
 
 static int parse_pipeline(source *src){
@@ -270,11 +310,13 @@ static int parse_pipeline(source *src){
 	struct cmd *cmdv = malloc(sizeof(struct cmd));
 	memset(cmdv,0,sizeof(struct cmd));
 	for(;;){
-		char *arg = get_string(src);
+		size_t count;
+		char **arg = get_strings(src,&count);
 		if(arg){
-			cmdv[cmdc-1].argc++;
-			cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * cmdv[cmdc-1].argc);
-			cmdv[cmdc-1].argv[cmdv[cmdc-1].argc-1] = arg;
+			cmdv[cmdc-1].argv = realloc(cmdv[cmdc-1].argv,sizeof(char *) * (cmdv[cmdc-1].argc + count));
+			memcpy(&cmdv[cmdc-1].argv[cmdv[cmdc-1].argc],arg,sizeof(char *) * count);
+			cmdv[cmdc-1].argc += count;
+			free(arg);
 			continue;
 		}
 		//not a string what it is ?

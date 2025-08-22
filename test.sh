@@ -1,8 +1,8 @@
 #!/bin/sh
 
 #compare two s output
-SHELL1=bash
-SHELL2=tash
+SHELL1=tash
+SHELL2=bash
 cd test
 
 rm -f $(find -not -name "*.sh" -type f)

@@ -95,11 +95,23 @@ void show_ps2(void);
 void prompt_unget(int c);
 int prompt_getc(void);
 
-void init_var(void);
+void putvar(const char *name,const char *value);
 char *getvar(const char *name);
-void *putvar(const char *var);
+void export_var(const char *name);
+void setup_environ(void);
+void setup_var(void);
 
 void init();
+
+
+struct var {
+	int exported;
+	char *value;
+	char *name;
+};
+
+extern size_t var_count;
+extern struct var *var;
 
 // cute custom perror
 #undef perror

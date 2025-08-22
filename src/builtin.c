@@ -3,8 +3,6 @@
 #include <unistd.h>
 #include "tsh.h"
 
-extern char **environ;
-
 int exit_cmd(int argc,char **argv){
 	if(argc > 2){
 		error("exit : too many arguments");
@@ -24,31 +22,25 @@ int exit_cmd(int argc,char **argv){
 }
 
 int export(int argc,char **argv){
-	int i = 1;
 	if(argc < 2 || !strcmp(argv[1],"-p")){
-		char ** e = environ;
-		while(*e){
-			puts(*e);
-			e++;
+		for(size_t i=0; i<var_count; i++){
+			if(var[i].exported)printf("%s=%s\n",var[i].name,var[i].value);
 		}
 		return 0;
 	}
 
 	int ret = 0;
+	int i = 1;
 	while(i < argc){
 		if(strchr(argv[i],'=')){
-			//TODO : remove from local/export if already exist ?
-			putenv(argv[i]);
+			char *name = argv[i];
+			char *value = strchr(name,'=');
+			*value = '\0';
+			value++;
+			putvar(name,value);
+			export_var(name);
 		} else {
-			if(!getenv(argv[i])){
-				char *val = getvar(argv[i]);
-				if(val){
-					//TODO : remove from local ?
-					putenv(val);
-				} else {
-					ret = 1;
-				}
-			}
+			export_var(argv[i]);
 		}
 		i++;
 	}

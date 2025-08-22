@@ -2,60 +2,74 @@
 #include <stdint.h>
 #include "tsh.h"
 
-static char **var = NULL;
-void init_var(void){
-	var = malloc(sizeof(char *));
-	var[0] = NULL;
-}
+extern char **environ;
 
-void *putvar(const char *str){
-	//find name lenght
-	size_t name_len = (uintptr_t)strchr(str,'=') - (uintptr_t)str + 1;
+size_t var_count = 0;
+struct var *var = NULL;
 
-	//try to find the key
-	int key = 0;
-	while(var[key]){
-		//is it the good key ?
-		if(strlen(var[key]) > name_len && !memcmp(var[key],str,name_len)){
-			break;
+void putvar(const char *name,const char *value){
+	//see if it already exist
+	for(size_t i=0; i<var_count; i++){
+		if(!strcmp(name,var[i].name)){
+			free(var[i].value);
+			var[i].value = strdup(value);
+			return;
 		}
-		key++;
 	}
-	
-	if(!var[key]){
-		//no key found
-		var = realloc(var,(key + 2) * sizeof(char *));
-
-		//set last NULL entry
-		var[key + 1] = NULL;
-	} else {
-		free(var[key]);
-	}
-
-	var[key] = strdup(str);
-	return 0;
-
+	var = realloc(var,(var_count+1) * sizeof(struct var));
+	var[var_count].name     = strdup(name);
+	var[var_count].value    = strdup(value);
+	var[var_count].exported = 0;
+	var_count++;
 }
 
 char *getvar(const char *name){
-	//first look in non exported var
-	//this is what we are searching
-	char search[strlen(name) + 2];
-	strcpy(search,name);
-	strcat(search,"=");
-
-	size_t name_len = strlen(search);
-
-	//try to find the key
-	int key = 0;
-	while(var[key]){
-		//is it the good key ?
-		if(strlen(var[key]) >= name_len && !memcmp(var[key],search,name_len)){
-			break;
+	for(size_t i=0; i<var_count; i++){
+		if(!strcmp(name,var[i].name)){
+			return var[i].value;
 		}
-		key++;
 	}
-	if(var[key])return var[key] + name_len;
-	
-	return getenv(name);
+	return NULL;
+}
+
+void export_var(const char *name){
+	for(size_t i=0; i<var_count; i++){
+		if(!strcmp(name,var[i].name)){
+			var[i].exported = 1;
+			return;
+		}
+	}
+	var = realloc(var,(var_count+1) * sizeof(struct var));
+	var[var_count].name     = strdup(name);
+	var[var_count].value    = strdup("");
+	var[var_count].exported = 1;
+	var_count++;
+}
+
+void setup_environ(void){
+	//FIXME : are we leaking memory
+	environ[0] = NULL;
+	for(size_t i=0; i<var_count; i++){
+		if(!var[i].exported)continue;
+		char *env = malloc(strlen(var[i].name) + strlen(var[i].value) + 2);
+		sprintf(env,"%s=%s",var[i].name,var[i].value);
+		putenv(env);
+	}
+}
+
+void setup_var(void){
+	for(size_t i=0; environ[i]; i++){
+		char *name = strdup(environ[i]);
+		char *value = strchr(name,'=');
+		if(!value){
+			error("inavlid environ string '%s'",name);
+			free(name);
+			continue;
+		}
+		*value = '\0';
+		value++;
+		putvar(name,value);
+		export_var(name);
+		free(name);
+	}
 }

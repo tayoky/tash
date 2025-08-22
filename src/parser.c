@@ -372,9 +372,20 @@ ret:
 		if(cmdv[k].argc <= 0)continue;
 
 		//check for variable asignement
-		if(cmdv[k].argc == 1 && strchr(cmdv[k].argv[0],'=')){
-			//TODO : pretty sure this isen't posix compliant
-			putvar(cmdv[k].argv[0]);
+		int assign = 1;
+		for(int i=0; i<cmdv[k].argc; i++){
+			//FIXME : we should use token instead
+			if(!strchr(cmdv[k].argv[i],'=')){
+				assign = 0;
+				break;
+			}
+		}
+		if(assign){
+			for(int i=0; i<cmdv[k].argc; i++){
+				char * value = strchr(cmdv[k].argv[i],'=');
+				*value = '\0';
+				putvar(cmdv[k].argv[i],value+1);
+			}
 			goto ret;
 		}
 		exit_status = check_builtin(cmdv[k].argc,cmdv[k].argv);
@@ -393,6 +404,7 @@ ret:
 				}
 			}
 
+			setup_environ();
 			//putenv if needed
 			int i=0;
 			while(strchr(cmdv[k].argv[i],'=')){

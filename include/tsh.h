@@ -75,6 +75,7 @@ extern int exit_status;
 #define TASH_IGN_NL      (1 << 3)
 #define TASH_IGN_EOF     (1 << 4)
 #define TASH_SUBSHELL    (1 << 5)
+#define LEXER_VARMODE    (1 << 6)
 
 #define arraylen(ar) (sizeof(ar)/sizeof(*ar))
 

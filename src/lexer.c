@@ -123,6 +123,7 @@ token *next_token(source *src){
 		}
 
 		src->unget(c,src->data);
+		src->flags &= ~LEXER_VARMODE;
 		return new;
 	} else {
 		src->unget(c,src->data);
@@ -134,8 +135,11 @@ token *next_token(source *src){
 		new->value = strdup("");
 		size_t size = 1;
 		int c;
+		int has_nonalnum = !(src->flags & LEXER_VARMODE);
+		if(!isalnum((c = src->getc(src->data)))) has_nonalnum = 1;
+		src->unget(c,src->data);
 		while((c = src->getc(src->data)) != EOF){
-			if(isblank(c))b: break;
+			if(isblank(c) || (!isalnum(c) && !has_nonalnum))b: break;
 			//check if we are at the start of a new op
 			for(size_t i=0; i<arraylen(operators); i++){
 				if(c == operators[i].str[0])goto b;
@@ -148,6 +152,11 @@ token *next_token(source *src){
 		src->unget(c,src->data);
 	} else {
 		new->type = operators[op].type;
+	}
+	if(new->type == '$' && !(src->flags & LEXER_VARMODE)){
+		src->flags |= LEXER_VARMODE;
+	} else {
+		src->flags &= ~LEXER_VARMODE;
 	}
 	return new;
 }

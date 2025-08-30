@@ -3,6 +3,39 @@
 #include <unistd.h>
 #include "tsh.h"
 
+int set(int argc,char **argv,source *src){
+	for(int i=1; i<argc; i++){
+		int mask  = 0;
+		char *f = argv[i];
+		if(!*f)goto invalid;
+		f++;
+		while(*f){
+			switch(*f){
+			case 'e':
+				mask |= TASH_ERR_EXIT;
+				break;
+			default:
+				goto invalid;
+			}
+			f++;
+		}
+		switch(argv[i][0]){
+		case '-':
+			src->flags |= mask;
+			break;
+		case '+':
+			src->flags &= ~mask;
+			break;
+		default:
+			goto invalid;
+		}
+		continue;
+invalid:
+		error("set : invalid option : '%s'",argv[i]);
+		return 1;
+	}
+	return 0;
+}
 int exit_cmd(int argc,char **argv){
 	if(argc > 2){
 		error("exit : too many arguments");
@@ -97,19 +130,20 @@ int src(int argc,char **argv){
 	return exit_status;
 }
 
-#define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
+#define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**,source*))cmd}
 static struct builtin builtin[] = {
 	CMD("cd"    ,cd),
-	CMD("exit",exit_cmd),
+	CMD("exit"  ,exit_cmd),
 	CMD("export",export),
 	CMD("source",src),
 	CMD("."     ,src),
+	CMD("set"   ,set),
 };
 
-int check_builtin(int argc,char **argv){
+int check_builtin(source *src,int argc,char **argv){
 	for(size_t i=0; i<arraylen(builtin);i++){
 		if(!strcmp(argv[0],builtin[i].name)){
-			return builtin[i].func(argc,argv);
+			return builtin[i].func(argc,argv,src);
 		}
 	}
 

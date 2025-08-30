@@ -10,13 +10,6 @@ typedef struct token {
 	char *value;
 } token;
 
-
-struct builtin {
-	int (*func)(int,char **);
-	char *name;
-	int lock_bypass;
-};
-
 typedef struct source {
 	void *data;
 	int (*getc)(void *);
@@ -26,6 +19,12 @@ typedef struct source {
 	int flags;
 	token *putback;
 } source;
+
+struct builtin {
+	int (*func)(int,char **,source*);
+	char *name;
+	int lock_bypass;
+};
 
 #define T_NULL          0
 #define T_STR           1
@@ -76,7 +75,7 @@ extern int exit_status;
 #define TASH_IGN_EOF     (1 << 4)
 #define TASH_SUBSHELL    (1 << 5)
 #define LEXER_VARMODE    (1 << 6)
-
+#define TASH_ERR_EXIT    (1 << 7) //exit on error
 #define arraylen(ar) (sizeof(ar)/sizeof(*ar))
 
 void error(const char *fmt,...);
@@ -86,7 +85,7 @@ void destroy_token(token *);
 const char *token_name(token *);
 const char *token2str(token *);
 
-int check_builtin(int argc,char **argv);
+int check_builtin(source *src,int argc,char **argv);
 
 int interpret(source *src);
 int eval(const char *str,int flags);

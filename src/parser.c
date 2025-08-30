@@ -405,6 +405,9 @@ ret:
 			if(cmdv[i].in)close(cmdv[i].in);
 		}
 		free(cmdv);
+		if((src->flags & TASH_ERR_EXIT) && exit_status){
+			exit(exit_status);
+		}
 		return 0;
 	}
 
@@ -430,7 +433,7 @@ ret:
 			}
 			goto ret;
 		}
-		exit_status = check_builtin(cmdv[k].argc,cmdv[k].argv);
+		exit_status = check_builtin(src,cmdv[k].argc,cmdv[k].argv);
 		//-1 mean no builtin
 		if(exit_status != -1)continue;
 		pid_t child = fork();
@@ -510,6 +513,7 @@ ret:
 	}
 	if(WIFSIGNALED(exit_status)){
 		printf("terminated on %s\n",strsignal(WTERMSIG(exit_status)));
+		exit_status = WTERMSIG(exit_status) + 128;
 	}
 
 	goto ret;

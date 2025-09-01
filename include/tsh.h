@@ -60,7 +60,7 @@ struct builtin {
 #define KEYWORD_WHILE  10
 #define KEYWORD_UNTIL  11
 #define KEYWORD_CASE   12
-#define KEYWOED_ESAC   13
+#define KEYWORD_ESAC   13
 #define KEYWORD_OBRACK 14
 #define KEYWORD_CBRACK 15
 

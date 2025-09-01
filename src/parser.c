@@ -552,11 +552,11 @@ static int tok2keyword(const token *tok){
 	} else if(!strcmp(tok->value,"case")){
 		return KEYWORD_CASE;
 	} else if(!strcmp(tok->value,"esac")){
-		return KEYWOED_ESAC;
+		return KEYWORD_ESAC;
 	} else if(!strcmp(tok->value,"{")){
-		return KEYWOED_OBRACK;
+		return KEYWORD_OBRACK;
 	} else if(!strcmp(tok->value,"}")){
-		return KEYWOED_CBRACK;
+		return KEYWORD_CBRACK;
 	} else {
 		return 0;
 	}

@@ -22,8 +22,6 @@ struct tok operators[]={
 	TOK(T_APPEND,">>"),
 	TOK(T_BG,"&"),
 	TOK(T_PIPE,"|"),
-	TOK(T_OPEN_BRACK,"{"),
-	TOK(T_CLOSE_BRACK,"}"),
 	TOK(T_OPEN_PAREN,"("),
 	TOK(T_CLOSE_PAREN,")"),
 	TOK(T_SEMI_COLON,";"),

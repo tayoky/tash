@@ -35,8 +35,6 @@ struct builtin {
 #define T_PIPE         '|'
 #define T_BG           '&'
 #define T_SPACE        ' '
-#define T_OPEN_BRACK   '{'
-#define T_CLOSE_BRACK  '}'
 #define T_OPEN_PAREN   '('
 #define T_CLOSE_PAREN  ')'
 #define T_SEMI_COLON   ';'
@@ -63,6 +61,8 @@ struct builtin {
 #define KEYWORD_UNTIL  11
 #define KEYWORD_CASE   12
 #define KEYWOED_ESAC   13
+#define KEYWORD_OBRACK 14
+#define KEYWORD_CBRACK 15
 
 extern int _argc;
 extern char **_argv;

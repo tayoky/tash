@@ -59,6 +59,8 @@ static void subshell(source *src){
 		strcat(str,__str);}
 
 static char *parse_var(source *src){
+	char tmp[32];
+
 	//first check for single digit
 	int c = src->getc(src->data);
 	if(isdigit(c)){
@@ -68,34 +70,9 @@ static char *parse_var(source *src){
 		} else {
 			return strdup(_argv[c]);
 		}
-	} else {
-		src->unget(c,src->data);
-	}
-	token *tok = get_token(src);
-	char tmp[32];
-	switch(tok->type){
-	case T_DOLLAR:
-		destroy_token(tok);
-#ifdef __stanix__
-		sprintf(tmp,"%ld",getpid());
-#else
-		sprintf(tmp,"%d",getpid());
-#endif
-		return strdup(tmp);
-		break;
-	case T_STR:;
-		char *var = getvar(tok->value);
-		destroy_token(tok);
-		return strdup(var ? var : "");
-	case T_QUESTION_MARK:
-		sprintf(tmp,"%d",exit_status);
-		return strdup(tmp);
-	case T_HASH:
-		sprintf(tmp,"%d",_argc-1 < 0  ? 0 : _argc-1);
-		return strdup(tmp);
-	case T_OPEN_BRACK:
-		destroy_token(tok);
-		tok = get_token(src);
+	} else if(c == '{'){
+		//check for stuff like ${xxx}
+		token *tok = get_token(src);
 		int len = 0;
 		switch(tok->type){
 		case T_HASH:
@@ -120,14 +97,42 @@ static char *parse_var(source *src){
 			val = getvar(tok->value);
 		}
 		destroy_token(tok);
-		tok = get_token(src);
-		if(tok->type != T_CLOSE_BRACK)syntax_error(tok);
-		destroy_token(tok);
+		c = src->getc(src->data);
+		if(c != '}'){
+			src->unget(c,src->data);
+			tok = get_token(src);
+			syntax_error(tok);
+		}
 		if(len){
 			sprintf(tmp,"%zd",val ? strlen(val) : 0);
 			return strdup(tmp);
 		}
 		return strdup(val ? val: "");
+	} else {
+		src->unget(c,src->data);
+	}
+
+	token *tok = get_token(src);
+	switch(tok->type){
+	case T_DOLLAR:
+		destroy_token(tok);
+#ifdef __stanix__
+		sprintf(tmp,"%ld",getpid());
+#else
+		sprintf(tmp,"%d",getpid());
+#endif
+		return strdup(tmp);
+		break;
+	case T_STR:;
+		char *var = getvar(tok->value);
+		destroy_token(tok);
+		return strdup(var ? var : "");
+	case T_QUESTION_MARK:
+		sprintf(tmp,"%d",exit_status);
+		return strdup(tmp);
+	case T_HASH:
+		sprintf(tmp,"%d",_argc-1 < 0  ? 0 : _argc-1);
+		return strdup(tmp);
 	case T_OPEN_PAREN:
 		//TODO : this is full of fd leak
 		//TODO : if pipe become full ?
@@ -548,6 +553,10 @@ static int tok2keyword(const token *tok){
 		return KEYWORD_CASE;
 	} else if(!strcmp(tok->value,"esac")){
 		return KEYWOED_ESAC;
+	} else if(!strcmp(tok->value,"{")){
+		return KEYWOED_OBRACK;
+	} else if(!strcmp(tok->value,"}")){
+		return KEYWOED_CBRACK;
 	} else {
 		return 0;
 	}

@@ -519,6 +519,8 @@ ret:
 	if(WIFSIGNALED(exit_status)){
 		printf("terminated on %s\n",strsignal(WTERMSIG(exit_status)));
 		exit_status = WTERMSIG(exit_status) + 128;
+	} else {
+		exit_status = WEXITSTATUS(exit_status);
 	}
 
 	goto ret;

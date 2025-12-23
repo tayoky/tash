@@ -81,7 +81,7 @@ int main(int argc,char **argv){
 		_argc = argc - i;
 		_argv = &argv[i];
 		init();
-		FILE *script = fopen(argv[i],"r");
+		FILE *script = fopen(argv[i],"re");
 		if(!script){
 			perror(argv[i]);
 			return 1;

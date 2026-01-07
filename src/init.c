@@ -9,7 +9,7 @@ static void ex_script(const char *name){
 	snprintf(path,256,"/etc/%s",name);
 	FILE *script = fopen(path,"re");
 	if(script){
-		source src = SRC_FILE(script);
+		source_t src = SRC_FILE(script);
 		interpret(&src);
 		fclose(script);
 	}
@@ -18,7 +18,7 @@ static void ex_script(const char *name){
 		snprintf(path,256,"%s/%s",getenv("HOME"),name);
 		script = fopen(path,"re");
 		if(script){
-			source src = SRC_FILE(script);
+			source_t src = SRC_FILE(script);
 			interpret(&src);
 			fclose(script);
 		}
@@ -27,6 +27,7 @@ static void ex_script(const char *name){
 
 void init(void){
 	setup_var();
+	return;
 
 	if(flags & TASH_LOGIN){
 		//source .profile

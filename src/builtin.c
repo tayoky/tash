@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include "tsh.h"
 
-int set(int argc,char **argv,source *src){
+int set(int argc,char **argv){
 	for(int i=1; i<argc; i++){
 		int mask  = 0;
 		char *f = argv[i];
@@ -21,10 +21,10 @@ int set(int argc,char **argv,source *src){
 		}
 		switch(argv[i][0]){
 		case '-':
-			src->flags |= mask;
+			//src->flags |= mask;
 			break;
 		case '+':
-			src->flags &= ~mask;
+			//src->flags &= ~mask;
 			break;
 		default:
 			goto invalid;
@@ -122,7 +122,7 @@ int src(int argc,char **argv){
 	char **old_argv = _argv;
 	_argc = argc - 1;
 	_argv = &argv[1];
-	source src = SRC_FILE(script);
+	source_t src = SRC_FILE(script);
 	interpret(&src);
 	fclose(script);
 	_argc = old_argc;
@@ -130,7 +130,7 @@ int src(int argc,char **argv){
 	return exit_status;
 }
 
-#define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**,source*))cmd}
+#define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
 static struct builtin builtin[] = {
 	CMD("cd"    ,cd),
 	CMD("exit"  ,exit_cmd),
@@ -140,10 +140,10 @@ static struct builtin builtin[] = {
 	CMD("set"   ,set),
 };
 
-int check_builtin(source *src,int argc,char **argv){
+int check_builtin(int argc,char **argv){
 	for(size_t i=0; i<arraylen(builtin);i++){
 		if(!strcmp(argv[0],builtin[i].name)){
-			return builtin[i].func(argc,argv,src);
+			return builtin[i].func(argc,argv);
 		}
 	}
 

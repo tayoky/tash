@@ -1,0 +1,49 @@
+#include <sys/wait.h>
+#include <unistd.h>
+#include <tsh.h>
+
+int exit_status = 0;
+
+#define FLAG_IN_CHILD 0x01
+
+static void execute_cmd(node_t *node, int in_fd, int out_fd, int flags) {
+	if (!(flags & FLAG_IN_CHILD)) {
+		pid_t child = fork();
+		if (child) {
+			waitpid(child, NULL, 0);
+			return;
+		}
+	}
+	execvp(node->cmd.args[0], node->cmd.args);
+	perror(node->cmd.args[0]);
+	return;
+}
+
+void execute(node_t *node, int in_fd, int out_fd, int flags) {
+	if (!node) return;
+	switch (node->type) {
+	case NODE_CMD:
+		execute_cmd(node, in_fd, out_fd, flags);
+	case NODE_SEP:
+		execute(node->binary.left , in_fd, out_fd, flags);
+		execute(node->binary.right, in_fd, out_fd, flags);
+		break;
+	case NODE_AND:
+		execute(node->binary.left, in_fd, out_fd, flags);
+		if (exit_status == 0) execute(node->binary.right, in_fd, out_fd, flags);
+		break;
+	case NODE_OR:
+		execute(node->binary.left, in_fd, out_fd, flags);
+		if (exit_status != 0) execute(node->binary.right, in_fd, out_fd, flags);
+		break;
+	case NODE_IF:
+		exit_status = 0;
+		execute(node->_if.condition, in_fd, out_fd, flags);
+		if (exit_status == 0) {
+			execute(node->_if.body, in_fd, out_fd, flags);
+		} else {
+			execute(node->_if.else_body, in_fd, out_fd, flags);
+		}
+		break;
+	}
+}

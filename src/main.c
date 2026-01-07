@@ -74,7 +74,7 @@ int main(int argc,char **argv){
 		}
 		init();
 		
-		return eval(argv[2],TASH_NOPS);
+		//return eval(argv[2],TASH_NOPS);
 	} else if(argc - i >= 1){
 		//shell launched with script or option
 		//in script mode remove everything before script name from arguement
@@ -86,7 +86,7 @@ int main(int argc,char **argv){
 			perror(argv[i]);
 			return 1;
 		}
-		source src = SRC_FILE(script);
+		source_t src = SRC_FILE(script);
 		int ret = interpret(&src);
 		fclose(script);
 		return ret;
@@ -96,11 +96,10 @@ int main(int argc,char **argv){
 			flags |= TASH_INTERACTIVE;
 		}
 		init();
-		source src = SRC_FILE(stdin);
+		source_t src = SRC_FILE(stdin);
 		if(flags & TASH_INTERACTIVE){
-			src.getc = (void*)prompt_getc;
-			src.unget = (void*)prompt_unget;
-			src.flags = 0;
+			src.get_char = (void*)prompt_getc;
+			src.unget_char = (void*)prompt_unget;
 		}
 		return interpret(&src);
 	}

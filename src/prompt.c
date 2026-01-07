@@ -16,6 +16,7 @@ int prompt_cursor = 0;
 int prompt_index  = 0;
 int prompt_len = 0;
 const char *last_prompt;
+int last_char = '\n';
 
 static void show_cwd(void){
 	char cwd[256];
@@ -192,7 +193,10 @@ int prompt_getc(void){
 			prompt_index++;
 			return EOF;
 		}
-		return (unsigned char)prompt_buf[prompt_index++];
+		return last_char = (unsigned char)prompt_buf[prompt_index++];
+	}
+	if (last_char == '\n') {
+		show_ps1();
 	}
 	if(tcgetattr(STDIN_FILENO,&old) < 0){
 		perror("tcgetattr");

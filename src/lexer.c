@@ -1,166 +1,245 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
+#include <tsh.h>
 #include <string.h>
-#include <errno.h>
-#include <poll.h>
-#include "tsh.h"
+#include <stdlib.h>
 
-struct tok {
-	char *str;
-	size_t len;
-	int type;
-};
-
-#define TOK(t,n) {.type = t,.str = n,.len = sizeof(n)-1}
-
-//must be from bigger to smaller
-struct tok operators[]={
-	TOK(T_NEWLINE,"\r\n"),
-	TOK(T_AND,"&&"),
-	TOK(T_OR,"||"),
-	TOK(T_APPEND,">>"),
-	TOK(T_BG,"&"),
-	TOK(T_PIPE,"|"),
-	TOK(T_OPEN_PAREN,"("),
-	TOK(T_CLOSE_PAREN,")"),
-	TOK(T_SEMI_COLON,";"),
-	TOK(T_INFERIOR,"<"),
-	TOK(T_SUPERIOR,">"),
-	TOK(T_NEWLINE,"\r"),
-	TOK(T_NEWLINE,"\n"),
-	TOK(T_QUOTE,"'"),
-	TOK(T_DQUOTE,"\""),
-	TOK(T_HASH,"#"),
-	TOK(T_DOLLAR,"$"),
-	TOK(T_BACKSLASH,"\\"),
-	TOK(T_QUESTION_MARK,"?"),
-};
-
-const char *token2str(token *t){
-	switch(t->type){
-	case T_NEWLINE:
-		return "\n";
-	case T_STR:
-	case T_SPACE:
-		return t->value;
-	default:
-		return token_name(t);
-	}
+int peek_char(source_t *src) {
+	int c = src->get_char(src->data);
+	src->unget_char(c, src->data);
+	return c;
 }
-const char *token_name(token *t){
-	switch(t->type){
-	case T_EOF:
-		return "<eof>";
-	case T_STR:
-		return "<string>";
+
+int get_char(source_t *src) {
+	return src->get_char(src->data);
+}
+
+int unget_char(source_t *src, int c) {
+	return src->unget_char(c, src->data);
+}
+
+const char *token_name(token_t *token) {
+	switch (token->type) {
+	case T_WORD:
+		return "<word>";
 	case T_NEWLINE:
 		return "<newline>";
-	case T_SPACE:
-		return "<space>";
+	case T_PIPE:
+		return "<pipe>";
+	case T_AND:
+		return "<and>";
+	case T_IF:
+		return "if";
+	case T_THEN:
+		return "then";
+	case T_ELIF:
+		return "elif";
+	case T_ELSE:
+		return "else";
+	case T_FI:
+		return "fi";
+	default:
+		return "unknow";
 	}
-
-	for(size_t i=0; i<arraylen(operators); i++){
-		if(operators[i].type == t->type){
-			return operators[i].str;
-		}
-	}
-	return "<unknow>";
 }
 
-static int get_operator(source *src){
-	int c = src->getc(src->data);
-	int best_match = -1;
-	size_t size = 1;
-	char str[8];
-	str[0] = c;
-	str[1] = '\0';
-	for(size_t i=0; i < arraylen(operators); i++){
-		if(size == operators[i].len && !memcmp(str,operators[i].str,operators[i].len)){
-			best_match = i;
-			//if we find a \n no token as anything after a \n
-			//so we can return
-			if(c == '\n')return i;
-			c = src->getc(src->data);
-			if(c == EOF)return i;
-			str[size] = c;
-			size++;
-			str[size] = '\0';
-			i = 0;
-		}
-	}
-
-	src->unget(c,src->data);
-	return best_match;
+static int is_delimiter(int c) {
+	if (c == EOF) return 1;
+	static char delimiters[] = " \t&|<>()\n;";
+	return !!strchr(delimiters, c);
 }
 
-
-token *next_token(source *src){
-	token *new = malloc(sizeof(token));
-	memset(new,0,sizeof(token));
-
-	//if aready at the end return EOF
-	int c = src->getc(src->data);
-	if(c == EOF){
-		new->type = T_EOF;
-		return new;
+// FIXME : make this memory safe
+static void handle_subshell(source_t *src, char *buf, int *i, int is_sub) {
+	if (is_sub > 1024) {
+		// wow the user is crazy
+		return;
 	}
 
-	//if blank just extract every blank
-	if(isblank(c)){
-		new->type = T_SPACE;
-		new->value = strdup("");
-		size_t size = 1;
-
-		while(isblank(c)){
-			size++;
-			new->value = realloc(new->value,size);
-			new->value[size-2] = c;
-			new->value[size-1] = '\0';
-			c = src->getc(src->data);
+	// TODO : handles quotes here
+	int quote = 0;
+	int c = get_char(src);
+	for (;;) {
+		if (quote == 0 && is_delimiter(c) && !is_sub) {
+			unget_char(src, c);
+			return;
 		}
-
-		src->unget(c,src->data);
-		src->flags &= ~LEXER_VARMODE;
-		return new;
-	} else {
-		src->unget(c,src->data);
-	}
-
-	int op = get_operator(src);
-	if(op < 0){
-		new->type = T_STR;
-		new->value = strdup("");
-		size_t size = 1;
-		int c;
-		int has_nonalnum = !(src->flags & LEXER_VARMODE);
-		if(!isalnum((c = src->getc(src->data)))) has_nonalnum = 1;
-		src->unget(c,src->data);
-		while((c = src->getc(src->data)) != EOF){
-			if(isblank(c) || (!isalnum(c) && !has_nonalnum))b: break;
-			//check if we are at the start of a new op
-			for(size_t i=0; i<arraylen(operators); i++){
-				if(c == operators[i].str[0])goto b;
+		buf[(*i)++] = c;
+		switch (c) {
+		case '\'':
+			if (quote == '"') break;
+			quote = quote == '\'' ? 0 : '\'';
+			break;
+		case '"':
+			if (quote == '\'') break;
+			quote = quote == '"' ? 0 : '"';
+			break;
+		case '\\':
+			if (quote == '\'') break;
+			c = get_char(src);
+			if (c == '\n') {
+				// ignore backslash and new line
+				(*i)--;
+				break;
 			}
-			size++;
-			new->value = realloc(new->value,size);
-			new->value[size-2] = c;
-			new->value[size-1] = '\0';
+			if (c != EOF) buf[(*i)++] = c;
+			break;
+		case '$':
+			if (quote == '\'') break;
+			if (peek_char(src) == '(') {
+				handle_subshell(src, buf, i, is_sub + 1);
+			}
+			break;
+		case ')':
+			if (quote == 0) return;
+			break;
 		}
-		src->unget(c,src->data);
-	} else {
-		new->type = operators[op].type;
+		c = get_char(src);
+		if (c == EOF) return;
 	}
-	if(new->type == '$' && !(src->flags & LEXER_VARMODE)){
-		src->flags |= LEXER_VARMODE;
-	} else {
-		src->flags &= ~LEXER_VARMODE;
-	}
-	return new;
+
 }
 
-void destroy_token(token *t){
-	if(!t)return;
-	free(t->value);
-	free(t);
+void unget_token(source_t *src, token_t *token) {
+	src->lexer.putback = token;
+}
+
+token_t *next_token(source_t *src) {
+	if (src->lexer.putback) {
+		token_t *token = src->lexer.putback;
+		src->lexer.putback = NULL;
+		return token;
+	}
+	token_t *token = malloc(sizeof(token_t));
+	if (!token) return NULL;
+	token->value = NULL;
+	token->type  = T_NULL;
+
+	// skip spaces
+	int c = get_char(src);
+	int in_comment = 0;
+	while (c == ' ' || c == '\t' || c == '#' || in_comment) {
+		if (c == '#') in_comment = 1;
+		c = get_char(src);
+		if (c == '\n' && in_comment) in_comment = 0;
+	}
+
+	// operator that don't need peek
+	switch (c) {
+	case EOF:
+		token->type = T_EOF;
+		return token;
+	case '<':
+		token->type = T_INFERIOR;
+		return token;
+	case '(':
+		token->type = T_OPEN_PAREN;
+		return token;
+	case ')':
+		token->type = T_CLOSE_PAREN;
+		return token;
+	case '\n':
+		token->type = T_NEWLINE;
+		return token;
+	case ';':
+		token->type = T_SEMI_COLON;
+		return token;
+	}
+
+	// operator thay might need peek
+	int c2 = peek_char(src);
+	switch (c) {
+	case '&':
+		if (c2 == '&') {
+			token->type = T_AND;
+			get_char(src);
+		} else {
+			token->type = T_BG;
+		}
+		return token;
+	case '|':
+		if (c2 == '|') {
+			token->type = T_OR;
+			get_char(src);
+		} else {
+			token->type = T_PIPE;
+		}
+		return token;
+	case '>':
+		if (c2 == '>') {
+			token->type = T_APPEND;
+			get_char(src);
+		} else {
+			token->type = T_SUPERIOR;
+		}
+		return token;
+	case '\r':
+		if (c2 == '\n') get_char(src);
+		token->type = T_NEWLINE;
+		return token;
+	// TODO : do more
+	}
+
+	// we have a word
+	char buf[512];
+	int i=0;
+	unget_char(src, c);
+	handle_subshell(src, buf, &i, 0);
+	buf[i] = '\0';
+	token->value = strdup(buf);
+
+	// is it a reserved word ?
+	switch (src->lexer.hint) {
+	case LEXER_COMMAND:
+		if (!strcmp(buf, "if")) {
+			token->type = T_IF;
+		} else if (!strcmp(buf, "then")) {
+			token->type = T_THEN;
+		} else if (!strcmp(buf, "else")) {
+			token->type = T_ELSE;
+		} else if (!strcmp(buf, "elif")) {
+			token->type = T_ELIF;
+		} else if (!strcmp(buf, "fi")) {
+			token->type = T_FI;
+		} else if (!strcmp(buf, "for")) {
+			token->type = T_FOR;
+		} else if (!strcmp(buf, "in")) {
+			token->type = T_IN;
+		} else if (!strcmp(buf, "do")) {
+			token->type = T_DO;
+		} else if (!strcmp(buf, "done")) {
+			token->type = T_DONE;
+		} else if (!strcmp(buf, "while")) {
+			token->type = T_WHILE;
+		} else if (!strcmp(buf, "until")) {
+			token->type = T_UNTIL;
+		} else if (!strcmp(buf, "for")) {
+			token->type = T_FOR;
+		} else if (!strcmp(buf, "case")) {
+			token->type = T_CASE;
+		} else if (!strcmp(buf, "esac")) {
+			token->type = T_ESAC;
+		} else if (!strcmp(buf, "{")) {
+			token->type = T_OPEN_BRACKET;
+		} else if (!strcmp(buf, "}")) {
+			token->type = T_CLOSE_BRACKET;
+		} else if (!strcmp(buf, "!")) {
+			token->type = T_BANG;
+		} else {
+			token->type = T_WORD;
+		}
+		break;
+	case LEXER_ARGS:
+		token->type = T_WORD;
+		break;
+	case LEXER_FILE:
+		token->type = T_WORD;
+		break;
+	}
+
+	return token;
+}
+
+void destroy_token(token_t *token) {
+	if (!token) return;
+	free(token->value);
+	free(token);
 }

@@ -45,5 +45,21 @@ void execute(node_t *node, int in_fd, int out_fd, int flags) {
 			execute(node->_if.else_body, in_fd, out_fd, flags);
 		}
 		break;
+	case NODE_WHILE:
+		for (;;) {
+			exit_status = 0;
+			execute(node->loop.condition, in_fd, out_fd, flags);
+			if (exit_status != 0) break;
+			execute(node->loop.body, in_fd, out_fd, flags);
+		}
+		break;
+	case NODE_UNTIL:
+		for (;;) {
+			exit_status = 0;
+			execute(node->loop.condition, in_fd, out_fd, flags);
+			if (exit_status == 0) break;
+			execute(node->loop.body, in_fd, out_fd, flags);
+		}
+		break;
 	}
 }

@@ -71,6 +71,10 @@ typedef struct node {
 			struct node *body;
 			struct node *else_body;
 		} _if;
+		struct {
+			struct node *condition;
+			struct node *body;
+		} loop;
 	};
 } node_t;
 #define NODE_NULL   0
@@ -82,6 +86,8 @@ typedef struct node {
 #define NODE_SEP    6
 #define NODE_BG     7
 #define NODE_IF     8
+#define NODE_WHILE  9
+#define NODE_UNTIL  10
 
 typedef struct lexer {
 	token_t *putback;

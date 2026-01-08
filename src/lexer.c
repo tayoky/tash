@@ -36,6 +36,14 @@ const char *token_name(token_t *token) {
 		return "else";
 	case T_FI:
 		return "fi";
+	case T_WHILE:
+		return "while";
+	case T_UNTIL:
+		return "until";
+	case T_DO:
+		return "do";
+	case T_DONE:
+		return "done";
 	default:
 		return "unknow";
 	}

@@ -40,11 +40,59 @@ void free_node(node_t *node) {
 		free_node(node->_if.condition);
 		free_node(node->_if.body);
 		free_node(node->_if.else_body);
+		break;
+	case NODE_WHILE:
+	case NODE_UNTIL:
+		free_node(node->loop.condition);
+		free_node(node->loop.body);
+		break;
 	}
 	free(node);
 }
 
 static node_t *parse_list(source_t *src, int multi_lines);
+
+static node_t *parse_loop(source_t *src, int type) {
+	// we already parsed the while/until
+	node_t *condition = parse_list(src, 1);
+	if (!condition) return NULL;
+
+	// we need a do
+	token_t *token = next_token(src);
+	if (token->type == T_DO) {
+		destroy_token(token);
+	} else {
+		// WTF
+		free_node(condition);
+		syntax_error("unexpected token '%s' (expected 'do')", token_name(token));
+		destroy_token(token);
+		parse_exit();
+	}
+
+	node_t *body = parse_list(src, 1);
+	if (!body) {
+		free_node(condition);
+		return NULL;
+	}
+
+	// we need a done
+	token = next_token(src);
+	if (token->type == T_DONE) {
+		destroy_token(token);
+	} else {
+		// WTF
+		free_node(condition);
+		free_node(body);
+		syntax_error("unexpected token '%s' (expected 'done')", token_name(token));
+		destroy_token(token);
+		parse_exit();
+	}
+
+	node_t *node = new_node(type);
+	node->loop.condition = condition;
+	node->loop.body      = body;
+	return node;
+}
 
 static node_t *parse_if(source_t *src) {
 	// we already parsed the if
@@ -58,7 +106,7 @@ static node_t *parse_if(source_t *src) {
 	} else {
 		// WTF
 		free_node(condition);
-		syntax_error("unexpected token %s", token_name(token));
+		syntax_error("unexpected token '%s' (expected 'then')", token_name(token));
 		destroy_token(token);
 		parse_exit();
 	}
@@ -82,7 +130,7 @@ static node_t *parse_if(source_t *src) {
 		// WTF
 		free_node(body);
 		free_node(condition);
-		syntax_error("unexpected token %s", token_name(token));
+		syntax_error("unexpected token '%s'", token_name(token));
 		destroy_token(token);
 		parse_exit();
 	}
@@ -109,6 +157,12 @@ static node_t *parse_simple_command(source_t *src) {
 	case T_IF:
 		destroy_token(token);
 		return parse_if(src);
+	case T_WHILE:
+		destroy_token(token);
+		return parse_loop(src, NODE_WHILE);
+	case T_UNTIL:
+		destroy_token(token);
+		return parse_loop(src, NODE_UNTIL);
 	case T_WORD:
 		// regular command
 		break;
@@ -165,7 +219,7 @@ static node_t *parse_simple_pipeline(source_t *src) {
 	if (!right_cmd) {
 		free_node(left_cmd);
 		token = next_token(src);
-		syntax_error("unexpected token %s", token_name(token));
+		syntax_error("unexpected token '%s'", token_name(token));
 		destroy_token(token);
 		parse_exit();
 	}
@@ -187,7 +241,7 @@ static node_t *parse_pipeline(source_t *src) {
 	node_t *child = parse_simple_pipeline(src);
 	if (!child) {
 		token = next_token(src);
-		syntax_error("unexpected token %s", token_name(token));
+		syntax_error("unexpected token '%s'", token_name(token));
 		destroy_token(token);
 		parse_exit();
 	}
@@ -213,7 +267,7 @@ static node_t *parse_logic_list(source_t *src) {
 			destroy_token(token);
 			free_node(node);
 			token = next_token(src);
-			syntax_error("unexpected token %s", token_name(token));
+			syntax_error("unexpected token '%s'", token_name(token));
 			destroy_token(token);
 			parse_exit();
 		}
@@ -247,12 +301,14 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 			token = next_token(src);
 			if (token->type == T_THEN || token->type == T_ELIF
 					|| token->type == T_ELSE
-					|| token->type == T_FI) {
+					|| token->type == T_FI
+					|| token->type == T_DO
+					|| token->type == T_DONE) {
 				unget_token(src, token);
 				break;
 			}
 			free_node(node);
-			syntax_error("unexpected token %s", token_name(token));
+			syntax_error("unexpected token '%s'", token_name(token));
 			destroy_token(token);
 			parse_exit();
 		}
@@ -272,7 +328,7 @@ static node_t *parse_line(source_t *src) {
 	if (token->type == T_EOF) {
 		destroy_token(token);
 	} else {
-		syntax_error("unexpected token %s", token_name(token));
+		syntax_error("unexpected token '%s'", token_name(token));
 		destroy_token(token);
 		parse_exit();
 	}
@@ -307,6 +363,17 @@ void print_node(node_t *node, int depth) {
 			puts("else body :");
 			print_node(node->_if.else_body , depth + 1);
 		}
+		break;
+	case NODE_WHILE:
+	case NODE_UNTIL:
+		puts(node->type == NODE_WHILE ? "while" : "until");
+
+		print_depth(depth);
+		puts("condition :");
+		print_node(node->loop.condition , depth + 1);
+		print_depth(depth);
+		puts("body :");
+		print_node(node->loop.body , depth + 1);
 		break;
 	case NODE_NEGATE:
 		printf("negate\n");

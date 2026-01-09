@@ -7,6 +7,7 @@
 
 typedef struct token {
 	int type;
+	int digit;
 	char *value;
 } token_t;
 
@@ -16,6 +17,8 @@ typedef struct token {
 #define T_OR             3
 #define T_EOF            4
 #define T_APPEND         5
+#define T_DUP_OUT        6
+#define T_DUP_IN         7
 #define T_PIPE          '|'
 #define T_BG            '&'
 #define T_SPACE         ' '
@@ -53,6 +56,17 @@ typedef struct word {
 	int flags;
 } word_t;
 
+typedef struct redir {
+	int fd;
+	int type;
+	int dest_fd;
+	char *dest_name;
+} redir_t;
+
+#define REDIR_IN     0x01
+#define REDIR_APPEND 0x02
+#define REDIR_DUP    0x0
+
 typedef struct node {
 	int type;
 	union {
@@ -65,6 +79,7 @@ typedef struct node {
 		} single;
 		struct {
 			char **args;
+			redir_t *redirs;
 		} cmd;
 		struct {
 			struct node *condition;

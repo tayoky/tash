@@ -1,6 +1,7 @@
 #include <tsh.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 int peek_char(source_t *src) {
 	int c = src->get_char(src->data);
@@ -23,9 +24,17 @@ const char *token_name(token_t *token) {
 	case T_NEWLINE:
 		return "<newline>";
 	case T_PIPE:
-		return "<pipe>";
+		return "|";
 	case T_AND:
-		return "<and>";
+		return "&&";
+	case T_OR:
+		return "||";
+	case T_INFERIOR:
+		return "<";
+	case T_SUPERIOR:
+		return ">";
+	case T_APPEND:
+		return ">>";
 	case T_IF:
 		return "if";
 	case T_THEN:
@@ -120,6 +129,7 @@ token_t *next_token(source_t *src) {
 	if (!token) return NULL;
 	token->value = NULL;
 	token->type  = T_NULL;
+	token->digit = -1;
 
 	// skip spaces
 	int c = get_char(src);
@@ -134,9 +144,6 @@ token_t *next_token(source_t *src) {
 	switch (c) {
 	case EOF:
 		token->type = T_EOF;
-		return token;
-	case '<':
-		token->type = T_INFERIOR;
 		return token;
 	case '(':
 		token->type = T_OPEN_PAREN;
@@ -154,6 +161,11 @@ token_t *next_token(source_t *src) {
 
 	// operator thay might need peek
 	int c2 = peek_char(src);
+	if (isdigit(c) && (c2 == '>' || c2 == '<')) {
+		token->digit = c - '0';
+		c = get_char(src);
+		c2 = peek_char(src);
+	}
 	switch (c) {
 	case '&':
 		if (c2 == '&') {
@@ -171,9 +183,20 @@ token_t *next_token(source_t *src) {
 			token->type = T_PIPE;
 		}
 		return token;
+	case '<':
+		if (c2 == '&') {
+			token->type = T_DUP_IN;
+			get_char(src);
+		} else {
+			token->type = T_INFERIOR;
+		}
+		return token;
 	case '>':
 		if (c2 == '>') {
 			token->type = T_APPEND;
+			get_char(src);
+		} else if (c2 == '&') {
+			token->type = T_DUP_OUT;
 			get_char(src);
 		} else {
 			token->type = T_SUPERIOR;

@@ -3,6 +3,7 @@
 #include <tsh.h>
 
 int exit_status = 0;
+pid_t current_group = 0;
 
 #define FLAG_IN_CHILD 0x01
 
@@ -17,6 +18,11 @@ static void execute_cmd(node_t *node, int in_fd, int out_fd, int flags) {
 	execvp(node->cmd.args[0], node->cmd.args);
 	perror(node->cmd.args[0]);
 	return;
+}
+
+static void execute_pipe(node_t *node, int in_fd, int out_fd, int flags) {
+	int pipefd[2];
+	pipe(pipefd);
 }
 
 void execute(node_t *node, int in_fd, int out_fd, int flags) {

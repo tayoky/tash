@@ -15,8 +15,9 @@ static void execute_cmd(node_t *node, int in_fd, int out_fd, int flags) {
 			return;
 		}
 	}
-	execvp(node->cmd.args[0], node->cmd.args);
-	perror(node->cmd.args[0]);
+	char **args = word_expansion(node->cmd.args, node->cmd.args_count);
+	execvp(args[0], args);
+	perror(args[0]);
 	return;
 }
 

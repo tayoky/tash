@@ -142,6 +142,10 @@ static node_t *parse_if(source_t *src) {
 	return node;
 }
 
+static void word_from_token(word_t *word, token_t *token) {
+	word->text = strdup(token->value);
+}
+
 static node_t *parse_simple_command(source_t *src) {
 	src->lexer.hint = LEXER_COMMAND;
 	token_t *token = next_token(src);
@@ -172,18 +176,19 @@ static node_t *parse_simple_command(source_t *src) {
 	}
 
 	// we have the first string
-	char *arg = strdup(token->value);
+	word_t word;
+	word_from_token(&word, token);
 	vector_t args = {0};
-	init_vector(&args, sizeof(char*));
-	vector_push_back(&args, &arg);
+	init_vector(&args, sizeof(word_t));
+	vector_push_back(&args, &word);
 
 	for (;;) {
 		destroy_token(token);
 		token = next_token(src);
 		switch (token->type) {
 		case T_WORD:
-			arg = strdup(token->value);
-			vector_push_back(&args, &arg);
+			word_from_token(&word, token);
+			vector_push_back(&args, &word);
 			continue;
 		default:
 			break;
@@ -193,11 +198,9 @@ static node_t *parse_simple_command(source_t *src) {
 	unget_token(src, token);
 	// we reached the end of the command
 	
-	arg = NULL;
-	vector_push_back(&args, &arg);
-	
 	node_t *node = new_node(NODE_CMD);
-	node->cmd.args = args.data;
+	node->cmd.args       = args.data;
+	node->cmd.args_count = args.count;
 	return node;
 }
 
@@ -345,9 +348,9 @@ void print_node(node_t *node, int depth) {
 	switch (node->type) {
 	case NODE_CMD:
 		printf("cmd args : \n");
-		for (int i=0; node->cmd.args[i]; i++) {
+		for (size_t i=0; i<node->cmd.args_count; i++) {
 			print_depth(depth + 1);
-			printf("arg%d : %s\n", i, node->cmd.args[i]);
+			printf("arg%zu : %s\n", i, node->cmd.args[i].text);
 		}
 		break;
 	case NODE_IF:

@@ -1,7 +1,8 @@
-#include <tsh.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <vector.h>
+#include <tsh.h>
 
 int peek_char(source_t *src) {
 	int c = src->get_char(src->data);
@@ -64,14 +65,14 @@ static int is_delimiter(int c) {
 	return !!strchr(delimiters, c);
 }
 
-// FIXME : make this memory safe
-static void handle_subshell(source_t *src, char *buf, int *i, int is_sub) {
+#define APPEND(c) vector_push_back(buf, (char[]){c})
+
+static void handle_subshell(source_t *src, vector_t *buf, int is_sub) {
 	if (is_sub > 1024) {
 		// wow the user is crazy
 		return;
 	}
 
-	// TODO : handles quotes here
 	int quote = 0;
 	int c = get_char(src);
 	for (;;) {
@@ -79,34 +80,71 @@ static void handle_subshell(source_t *src, char *buf, int *i, int is_sub) {
 			unget_char(src, c);
 			return;
 		}
-		buf[(*i)++] = c;
 		switch (c) {
 		case '\'':
-			if (quote == '"') break;
-			quote = quote == '\'' ? 0 : '\'';
+			if (quote == '"') {
+				APPEND(CTLESC);
+				APPEND(c);
+			} else {
+				quote = quote == '\'' ? 0 : '\'';
+				APPEND(CTLQUOT);
+			}
 			break;
 		case '"':
-			if (quote == '\'') break;
-			quote = quote == '"' ? 0 : '"';
+			if (quote == '\'') {
+				APPEND(CTLESC);
+				APPEND(c);
+			} else {
+				quote = quote == '"' ? 0 : '"';
+				APPEND(CTLQUOT);
+			}
 			break;
 		case '\\':
-			if (quote == '\'') break;
-			c = get_char(src);
-			if (c == '\n') {
-				// ignore backslash and new line
-				(*i)--;
+			if (quote == '\'') {
+				APPEND(c);
 				break;
 			}
-			if (c != EOF) buf[(*i)++] = c;
+			if (quote == '"') {
+				c = peek_char(src);
+				if (c == '$' || c == '"' || c == '`' || c == '\\') {
+					APPEND('\\');
+					break;
+				}
+			}
+			c = get_char(src);
+			if (c == '\n' || c == EOF) {
+				break;
+			}
+			APPEND(CTLESC);
+			APPEND(c);
 			break;
 		case '$':
-			if (quote == '\'') break;
+			if (quote == '\'') {
+				APPEND(CTLESC);
+				APPEND(c);
+				break;
+			}
+			APPEND(c);
 			if (peek_char(src) == '(') {
-				handle_subshell(src, buf, i, is_sub + 1);
+				handle_subshell(src, buf, is_sub + 1);
 			}
 			break;
 		case ')':
+			APPEND(c);
 			if (quote == 0) return;
+			break;
+		case '*':
+		case ' ':
+			if (quote) APPEND(CTLESC);
+			APPEND(c);
+			break;
+		case CTLESC:
+		case CTLQUOT:
+			APPEND(CTLESC);
+			APPEND(c);
+			break;
+		default:
+			APPEND(c);
 			break;
 		}
 		c = get_char(src);
@@ -210,49 +248,50 @@ token_t *next_token(source_t *src) {
 	}
 
 	// we have a word
-	char buf[512];
-	int i=0;
+	vector_t buf = {0};
+	init_vector(&buf, sizeof(char));
 	unget_char(src, c);
-	handle_subshell(src, buf, &i, 0);
-	buf[i] = '\0';
-	token->value = strdup(buf);
+	handle_subshell(src, &buf, 0);
+	vector_push_back(&buf, (char[]){'\0'});
+	token->value = buf.data;
 
 	// is it a reserved word ?
+	char *str = buf.data;
 	switch (src->lexer.hint) {
 	case LEXER_COMMAND:
-		if (!strcmp(buf, "if")) {
+		if (!strcmp(str, "if")) {
 			token->type = T_IF;
-		} else if (!strcmp(buf, "then")) {
+		} else if (!strcmp(str, "then")) {
 			token->type = T_THEN;
-		} else if (!strcmp(buf, "else")) {
+		} else if (!strcmp(str, "else")) {
 			token->type = T_ELSE;
-		} else if (!strcmp(buf, "elif")) {
+		} else if (!strcmp(str, "elif")) {
 			token->type = T_ELIF;
-		} else if (!strcmp(buf, "fi")) {
+		} else if (!strcmp(str, "fi")) {
 			token->type = T_FI;
-		} else if (!strcmp(buf, "for")) {
+		} else if (!strcmp(str, "for")) {
 			token->type = T_FOR;
-		} else if (!strcmp(buf, "in")) {
+		} else if (!strcmp(str, "in")) {
 			token->type = T_IN;
-		} else if (!strcmp(buf, "do")) {
+		} else if (!strcmp(str, "do")) {
 			token->type = T_DO;
-		} else if (!strcmp(buf, "done")) {
+		} else if (!strcmp(str, "done")) {
 			token->type = T_DONE;
-		} else if (!strcmp(buf, "while")) {
+		} else if (!strcmp(str, "while")) {
 			token->type = T_WHILE;
-		} else if (!strcmp(buf, "until")) {
+		} else if (!strcmp(str, "until")) {
 			token->type = T_UNTIL;
-		} else if (!strcmp(buf, "for")) {
+		} else if (!strcmp(str, "for")) {
 			token->type = T_FOR;
-		} else if (!strcmp(buf, "case")) {
+		} else if (!strcmp(str, "case")) {
 			token->type = T_CASE;
-		} else if (!strcmp(buf, "esac")) {
+		} else if (!strcmp(str, "esac")) {
 			token->type = T_ESAC;
-		} else if (!strcmp(buf, "{")) {
+		} else if (!strcmp(str, "{")) {
 			token->type = T_OPEN_BRACKET;
-		} else if (!strcmp(buf, "}")) {
+		} else if (!strcmp(str, "}")) {
 			token->type = T_CLOSE_BRACKET;
-		} else if (!strcmp(buf, "!")) {
+		} else if (!strcmp(str, "!")) {
 			token->type = T_BANG;
 		} else {
 			token->type = T_WORD;

@@ -55,6 +55,9 @@ typedef struct word {
 	char *text;
 	int flags;
 } word_t;
+#define WORD_HAS_QUOTE 0x01
+#define CTLESC  0x01
+#define CTLQUOT 0x02
 
 typedef struct redir {
 	int fd;
@@ -78,8 +81,9 @@ typedef struct node {
 			struct node *child;
 		} single;
 		struct {
-			char **args;
+			word_t *args;
 			redir_t *redirs;
+			size_t args_count;
 		} cmd;
 		struct {
 			struct node *condition;
@@ -153,6 +157,7 @@ int check_builtin(int argc,char **argv);
 int interpret(source_t *src);
 int eval(const char *str,int flags);
 void execute(node_t *node, int in_fd, int out_fd, int flags);
+char **word_expansion(word_t *words, size_t words_count);
 
 void show_ps1(void);
 void show_ps2(void);

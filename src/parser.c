@@ -415,13 +415,13 @@ void print_node(node_t *node, int depth) {
 
 int interpret(source_t *src) {
 	if (setjmp(parser_buf)) {
-		return -1;
+		return 1;
 	}
 	for (;;) {
 		node_t *node = parse_line(src);
 		if (!node) {
 			// we hit EOF
-			return 0;
+			return exit_status;
 		}
 #ifdef DEBUG
 		print_node(node, 0);
@@ -430,7 +430,7 @@ int interpret(source_t *src) {
 		free_node(node);
 	}
 
-	return 0;
+	return exit_status;
 }
 
 typedef struct buf {

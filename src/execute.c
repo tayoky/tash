@@ -5,7 +5,7 @@
 int exit_status = 0;
 pid_t current_group = 0;
 
-#define FLAG_IN_CHILD 0x01
+#define FLAG_NO_FORK 0x01
 
 static void set_exit_status(int status) {
 	if (WIFEXITED(status)) {
@@ -15,19 +15,44 @@ static void set_exit_status(int status) {
 	}
 }
 
+static void free_args(char **args) {
+	char **arg = args;
+	while (*arg) {
+		free(*arg);
+		arg++;
+	}
+	free(args);
+}
+
+static int args_count(char **args) {
+	int argc = 0;
+	while (*args) {
+		argc++;
+		args++;
+	}
+	return argc;
+}
+
 static void execute_cmd(node_t *node, int in_fd, int out_fd, int flags) {
-	if (!(flags & FLAG_IN_CHILD)) {
+	char **args = word_expansion(node->cmd.args, node->cmd.args_count);
+	int status;
+	if ((status = try_builtin(args_count(args), args)) >= 0) {
+		exit_status = status;
+		free_args(args);
+		return;
+	}
+	if (!(flags & FLAG_NO_FORK)) {
 		pid_t child = fork();
 		if (child) {
-			int status;
+			free_args(args);
 			waitpid(child, &status, 0);
 			set_exit_status(status);
 			return;
 		}
 	}
-	char **args = word_expansion(node->cmd.args, node->cmd.args_count);
 	execvp(args[0], args);
 	perror(args[0]);
+	free_args(args);
 	return;
 }
 

@@ -82,7 +82,7 @@ int export(int argc,char **argv){
 
 int cd(int argc,char **argv){
 	if(argc > 2){
-		error("cd :too many arguments");
+		error("cd : too many arguments");
 		return 1;
 	}
 	if(argc == 2){
@@ -92,7 +92,7 @@ int cd(int argc,char **argv){
 		}
 		return 0;
 	} else {
-		const char *home = getenv("HOME");
+		const char *home = getvar("HOME");
 		if(!home){
 			error("cd : HOME not set");
 			return 1;
@@ -131,7 +131,7 @@ int src(int argc,char **argv){
 }
 
 #define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
-static struct builtin builtin[] = {
+static builtin_t builtin[] = {
 	CMD("cd"    ,cd),
 	CMD("exit"  ,exit_cmd),
 	CMD("export",export),
@@ -140,7 +140,7 @@ static struct builtin builtin[] = {
 	CMD("set"   ,set),
 };
 
-int check_builtin(int argc,char **argv){
+int try_builtin(int argc,char **argv){
 	for(size_t i=0; i<arraylen(builtin);i++){
 		if(!strcmp(argv[0],builtin[i].name)){
 			return builtin[i].func(argc,argv);

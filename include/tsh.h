@@ -125,10 +125,10 @@ typedef struct source {
 	lexer_t lexer;
 } source_t;
 
-struct builtin {
+typedef struct builtin {
 	int (*func)(int,char **);
 	char *name;
-};
+} builtin_t;
 
 extern int _argc;
 extern char **_argv;
@@ -152,7 +152,7 @@ void unget_token(source_t *src, token_t *token);
 void destroy_token(token_t *token);
 const char *token_name(token_t *);
 
-int check_builtin(int argc,char **argv);
+int try_builtin(int argc, char **argv);
 
 int interpret(source_t *src);
 int eval(const char *str);

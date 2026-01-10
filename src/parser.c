@@ -431,3 +431,35 @@ int interpret(source_t *src) {
 
 	return 0;
 }
+
+typedef struct buf {
+	size_t size;
+	size_t ptr;
+	char *data;
+} buf_t;
+
+static int buf_getc(void *data) {
+	buf_t *buf = data;
+	if (buf->ptr == buf->size) return EOF;
+	return buf->data[buf->ptr++];
+}
+
+static int buf_ungetc(int c, void *data) {
+	buf_t *buf = data;
+	if (c ==  EOF) return EOF;
+	buf->ptr--;
+	return c;
+}
+
+int eval(const char *str) {
+	buf_t buf = {
+		.size = strlen(str),
+		.data = (void*)str,
+	};
+	source_t src = {
+		.get_char   = buf_getc,
+		.unget_char = buf_ungetc,
+		.data       = &buf,
+	};
+	return interpret(&src);
+}

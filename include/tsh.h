@@ -155,7 +155,7 @@ const char *token_name(token_t *);
 int check_builtin(int argc,char **argv);
 
 int interpret(source_t *src);
-int eval(const char *str,int flags);
+int eval(const char *str);
 void execute(node_t *node, int in_fd, int out_fd, int flags);
 char **word_expansion(word_t *words, size_t words_count);
 

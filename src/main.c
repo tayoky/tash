@@ -74,10 +74,10 @@ int main(int argc,char **argv){
 		}
 		init();
 		
-		//return eval(argv[2],TASH_NOPS);
+		return eval(argv[2]);
 	} else if(argc - i >= 1){
-		//shell launched with script or option
-		//in script mode remove everything before script name from arguement
+		// shell launched with script or option
+		// in script mode remove everything before script name from arguement
 		_argc = argc - i;
 		_argv = &argv[i];
 		init();
@@ -91,7 +91,7 @@ int main(int argc,char **argv){
 		fclose(script);
 		return ret;
 	} else {
-		//automatic detection of tty when no script is given
+		// automatic detection of tty when no script is given
 		if(isatty(STDIN_FILENO) == 1){
 			flags |= TASH_INTERACTIVE;
 		}

@@ -1,9 +1,16 @@
+#include <ctype.h>
 #include <vector.h>
 #include <tsh.h>
 
 // do word expansion
 
-static void var_expansion(vector_t *dest, const char *src) {
+static int is_dangerous(int c) {
+	return c == ' ' || c == '\t' || c == '\n' || c == CTLESC || c == CTLQUOT || c == '*' || c == '~';
+}
+
+#define APPEND(c) vector_push_back(dest, (char[]){c})
+
+static int var_expansion(vector_t *dest, const char *src) {
 	int in_quote = 0;
 	while (*src) {
 		if (*src == CTLESC) {
@@ -13,8 +20,29 @@ static void var_expansion(vector_t *dest, const char *src) {
 		} else if (*src == CTLQUOT) {
 			in_quote = 1 - in_quote;
 		} else if (*src == '$') {
-			// TODO
-			error("TODO : VAR expansion");
+			// TODO : bracket support
+			src++;
+			if (*src == '{') {
+			} else {
+				const char *start = src;
+				while (isalnum(*src) || *src == '_') {
+					src++;
+				}
+				if (src == start) {
+					APPEND('$');
+					continue;
+				}
+				char *var = strndup(start, src - start);
+				const char *value = getvar(var);
+				free(var);
+				if (!value) continue;
+				src--;
+				while (*value) {
+					if (in_quote && is_dangerous(*value)) APPEND(CTLESC);
+					vector_push_back(dest, value);
+					value++;
+				}
+			}
 		} else {
 			vector_push_back(dest, src);
 		}
@@ -22,6 +50,7 @@ static void var_expansion(vector_t *dest, const char *src) {
 
 	}
 	vector_push_back(dest, src);
+	return 0;
 }
 
 static char *expand_word(word_t *word) {
@@ -56,7 +85,10 @@ char **word_expansion(word_t *words, size_t words_count) {
 			case CTLQUOT:
 				break;
 			case ' ':
+			case '\t':
+			case '\n':
 				// split
+				if (v.count == 0) break;
 				vector_push_back(&v, (char[]){'\0'});
 				str = strdup(v.data);
 				vector_push_back(&strings, &str);

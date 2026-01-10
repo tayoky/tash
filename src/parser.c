@@ -422,7 +422,9 @@ int interpret(source_t *src) {
 			// we hit EOF
 			return 0;
 		}
+#ifdef DEBUG
 		print_node(node, 0);
+#endif
 		execute(node, STDIN_FILENO, STDOUT_FILENO, 0);
 		free_node(node);
 	}

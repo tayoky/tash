@@ -135,6 +135,8 @@ static void handle_subshell(source_t *src, vector_t *buf, int is_sub) {
 			break;
 		case '*':
 		case ' ':
+		case '\t':
+		case '\n':
 			if (quote) APPEND(CTLESC);
 			APPEND(c);
 			break;

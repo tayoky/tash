@@ -340,70 +340,71 @@ static node_t *parse_line(source_t *src) {
 
 static void print_depth(int depth) {
 	for (int i=0; i<depth; i++) {
-		printf("  ");
+		fprintf(stderr, "  ");
 	}
 }
+
 void print_node(node_t *node, int depth) {
 	print_depth(depth);
 	switch (node->type) {
 	case NODE_CMD:
-		printf("cmd args : \n");
+		fputs("cmd args : \n", stderr);
 		for (size_t i=0; i<node->cmd.args_count; i++) {
 			print_depth(depth + 1);
-			printf("arg%zu : %s\n", i, node->cmd.args[i].text);
+			fprintf(stderr, "arg%zu : %s\n", i, node->cmd.args[i].text);
 		}
 		break;
 	case NODE_IF:
-		puts("if");
+		fputs("if\n", stderr);
 		print_depth(depth);
-		puts("condition :");
+		fputs("condition :\n", stderr);
 		print_node(node->_if.condition , depth + 1);
 		print_depth(depth);
-		puts("body :");
+		fputs("body :\n", stderr);
 		print_node(node->_if.body , depth + 1);
 		if (node->_if.else_body) {
 			print_depth(depth);
-			puts("else body :");
+			fputs("else body :\n", stderr);
 			print_node(node->_if.else_body , depth + 1);
 		}
 		break;
 	case NODE_WHILE:
 	case NODE_UNTIL:
-		puts(node->type == NODE_WHILE ? "while" : "until");
+		fputs(node->type == NODE_WHILE ? "while\n" : "until\n", stderr);
 
 		print_depth(depth);
-		puts("condition :");
+		fputs("condition :\n", stderr);
 		print_node(node->loop.condition , depth + 1);
 		print_depth(depth);
-		puts("body :");
+		fputs("body :\n",stderr);
 		print_node(node->loop.body , depth + 1);
 		break;
 	case NODE_NEGATE:
-		printf("negate\n");
+		fputs("negate\n", stderr);
 		print_node(node->single.child , depth + 1);
 		break;
 	case NODE_PIPE:
-		printf("pipe\n");
+		fputs("pipe\n", stderr);
 		print_node(node->binary.left , depth + 1);
 		print_node(node->binary.right, depth + 1);
 		break;
 	case NODE_OR:
-		printf("or\n");
+		fputs("or\n", stderr);
 		print_node(node->binary.left , depth + 1);
 		print_node(node->binary.right, depth + 1);
 		break;
 	case NODE_AND:
-		printf("and\n");
+		fputs("and\n", stderr);
 		print_node(node->binary.left , depth + 1);
 		print_node(node->binary.right, depth + 1);
 		break;
 	case NODE_SEP:
-		printf("sep\n");
+		fputs("sep\n", stderr);
 		print_node(node->binary.left , depth + 1);
 		print_node(node->binary.right, depth + 1);
 		break;
 	case NODE_BG:
-		printf("bg\n");
+		fputs("bg\n", stderr);
 		print_node(node->binary.left , depth + 1);
 		print_node(node->binary.right, depth + 1);
 		break;

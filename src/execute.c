@@ -7,11 +7,21 @@ pid_t current_group = 0;
 
 #define FLAG_IN_CHILD 0x01
 
+static void set_exit_status(int status) {
+	if (WIFEXITED(status)) {
+		exit_status = WEXITSTATUS(status);
+	} else if(WIFSIGNALED(status)) {
+		exit_status = WTERMSIG(status) + 128;
+	}
+}
+
 static void execute_cmd(node_t *node, int in_fd, int out_fd, int flags) {
 	if (!(flags & FLAG_IN_CHILD)) {
 		pid_t child = fork();
 		if (child) {
-			waitpid(child, NULL, 0);
+			int status;
+			waitpid(child, &status, 0);
+			set_exit_status(status);
 			return;
 		}
 	}

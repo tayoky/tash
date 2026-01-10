@@ -35,6 +35,11 @@ static int args_count(char **args) {
 
 static void execute_cmd(node_t *node, int in_fd, int out_fd, int flags) {
 	char **args = word_expansion(node->cmd.args, node->cmd.args_count);
+	if (!args) {
+		// expansion error
+		exit_status = 1;
+		return;
+	}
 	int status;
 	if ((status = try_builtin(args_count(args), args)) >= 0) {
 		exit_status = status;

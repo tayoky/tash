@@ -25,7 +25,7 @@ static inline void free_vector(vector_t *vector){
 	vector->count = 0;
 }
 
-static inline void *vectot_at(vector_t *vector, size_t index){
+static inline void *vector_at(vector_t *vector, size_t index){
 	return (index < vector->count) ? (char*)vector->data + index * vector->element_size : NULL;
 }
 

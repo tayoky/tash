@@ -16,8 +16,13 @@ static int is_special(int c) {
 
 static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	// TODO : bracket support
-	const char *start = *ptr;
-	const char *src = start;
+	const char *src = *ptr;
+	int has_bracket = 0;
+	if (*src == '{') {
+		has_bracket = 1;
+		src++;
+	}
+	const char *start = src;
 	const char *value = NULL;
 	char buf[32];
 	switch (*src) {
@@ -47,6 +52,10 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 			src++;
 		}
 		if (src == start) {
+			if (has_bracket) {
+				error("bad substitution");
+				return -1;
+			}
 			APPEND('$');
 			return 0;
 		}
@@ -55,6 +64,13 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		free(var);
 		src--;
 		break;
+	}
+	if (has_bracket) {
+		src++;
+		if (*src != '}') {
+			error("bad substitution");
+			return -1;
+		}
 	}
 	*ptr = src;
 	if (!value) {
@@ -80,7 +96,7 @@ static int var_expansion(vector_t *dest, const char *src) {
 			in_quote = 1 - in_quote;
 		} else if (*src == '$') {
 			src++;
-			handle_var(dest, &src, in_quote);
+			if (handle_var(dest, &src, in_quote) < 0) return -1;
 		} else {
 			vector_push_back(dest, src);
 		}
@@ -97,9 +113,13 @@ static char *expand_word(word_t *word) {
 	vector_t v2 = {0};
 	init_vector(&v1, sizeof(char));
 	init_vector(&v2, sizeof(char));
-	var_expansion(&v1, word->text);
+	if (var_expansion(&v1, word->text) < 0) goto error;
 	free_vector(&v2);
 	return v1.data;
+error:
+	free_vector(&v1);
+	free_vector(&v2);
+	return NULL;
 }
 
 char **word_expansion(word_t *words, size_t words_count) {
@@ -109,6 +129,8 @@ char **word_expansion(word_t *words, size_t words_count) {
 
 	for (size_t i=0; i<words_count; i++) {
 		char *expanded = expand_word(&words[i]);
+		if (!expanded) goto error;
+
 		// split the field
 		vector_t v = {0};
 		init_vector(&v, sizeof(char));
@@ -153,4 +175,10 @@ char **word_expansion(word_t *words, size_t words_count) {
 	str = NULL;
 	vector_push_back(&strings, &str);
 	return strings.data;
+error:
+	for (size_t i=0; i<strings.count; i++) {
+		free(*(char**)vector_at(&strings, i));
+	}
+	free_vector(&strings);
+	return NULL;
 }

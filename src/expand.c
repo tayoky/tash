@@ -75,6 +75,10 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	*ptr = src;
 	if (!value) {
 		// var is unset
+		if (flags & TASH_UNSET_EXIT) {
+			error("variable unset");
+			return -1;
+		}
 		return 0;
 	}
 	while (*value) {

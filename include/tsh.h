@@ -137,11 +137,9 @@ extern int flags;
 extern int exit_status;
 #define TASH_LOGIN       (1 << 0)
 #define TASH_INTERACTIVE (1 << 1)
-#define TASH_NOPS        (1 << 2)
-#define TASH_IGN_NL      (1 << 3)
-#define TASH_IGN_EOF     (1 << 4)
-#define TASH_SUBSHELL    (1 << 5)
-#define TASH_ERR_EXIT    (1 << 7) //exit on error
+#define TASH_SUBSHELL    (1 << 2)
+#define TASH_ERR_EXIT    (1 << 3) // exit on error
+#define TASH_UNSET_EXIT  (1 << 4) // exit on unset
 #define arraylen(ar) (sizeof(ar)/sizeof(*ar))
 
 void error(const char *fmt,...);

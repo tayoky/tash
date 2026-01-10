@@ -14,6 +14,9 @@ int set(int argc,char **argv){
 			case 'e':
 				mask |= TASH_ERR_EXIT;
 				break;
+			case 'u':
+				mask |= TASH_UNSET_EXIT;
+				break;
 			default:
 				goto invalid;
 			}
@@ -21,10 +24,10 @@ int set(int argc,char **argv){
 		}
 		switch(argv[i][0]){
 		case '-':
-			//src->flags |= mask;
+			flags |= mask;
 			break;
 		case '+':
-			//src->flags &= ~mask;
+			flags &= ~mask;
 			break;
 		default:
 			goto invalid;

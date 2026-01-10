@@ -63,16 +63,17 @@ typedef struct word {
 typedef struct redir {
 	int fd;
 	int type;
-	int dest_fd;
-	char *dest_name;
+	word_t dest;
 } redir_t;
 
 #define REDIR_IN     0x01
 #define REDIR_APPEND 0x02
-#define REDIR_DUP    0x0
+#define REDIR_DUP    0x04
 
 typedef struct node {
 	int type;
+	redir_t *redirs;
+	size_t redirs_count;
 	union {
 		struct {
 			struct node *left;
@@ -83,7 +84,6 @@ typedef struct node {
 		} single;
 		struct {
 			word_t *args;
-			redir_t *redirs;
 			size_t args_count;
 		} cmd;
 		struct {
@@ -97,17 +97,19 @@ typedef struct node {
 		} loop;
 	};
 } node_t;
-#define NODE_NULL   0
-#define NODE_CMD    1
-#define NODE_PIPE   2
-#define NODE_NEGATE 3
-#define NODE_OR     4
-#define NODE_AND    5
-#define NODE_SEP    6
-#define NODE_BG     7
-#define NODE_IF     8
-#define NODE_WHILE  9
-#define NODE_UNTIL  10
+#define NODE_NULL     0
+#define NODE_CMD      1
+#define NODE_PIPE     2
+#define NODE_NEGATE   3
+#define NODE_OR       4
+#define NODE_AND      5
+#define NODE_SEP      6
+#define NODE_BG       7
+#define NODE_IF       8
+#define NODE_WHILE    9
+#define NODE_UNTIL    10
+#define NODE_SUBSHELL 11
+#define NODE_GROUP    12
 
 typedef struct lexer {
 	token_t *putback;

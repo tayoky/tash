@@ -24,6 +24,8 @@ const char *token_name(token_t *token) {
 		return "<word>";
 	case T_NEWLINE:
 		return "<newline>";
+	case T_BG:
+		return "&";
 	case T_PIPE:
 		return "|";
 	case T_AND:
@@ -36,6 +38,10 @@ const char *token_name(token_t *token) {
 		return ">";
 	case T_APPEND:
 		return ">>";
+	case T_OPEN_PAREN:
+		return "(";
+	case T_CLOSE_PAREN:
+		return ")";
 	case T_IF:
 		return "if";
 	case T_THEN:
@@ -54,6 +60,12 @@ const char *token_name(token_t *token) {
 		return "do";
 	case T_DONE:
 		return "done";
+	case T_OPEN_BRACKET:
+		return "{";
+	case T_CLOSE_BRACKET:
+		return "}";
+	case T_BANG:
+		return "!";
 	default:
 		return "unknow";
 	}

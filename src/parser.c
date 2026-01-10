@@ -25,6 +25,9 @@ static node_t *new_node(int type) {
 void free_node(node_t *node) {
 	if (!node) return;
 	switch (node->type) {
+	case NODE_CMD:
+		free(node->cmd.args);
+		break;
 	case NODE_NEGATE:
 		free_node(node->single.child);
 		break;
@@ -142,12 +145,136 @@ static node_t *parse_if(source_t *src) {
 	return node;
 }
 
+static node_t *parse_subshell(source_t *src) {
+	// we already parsed the (
+	node_t *content = parse_list(src, 1);
+	if (!content) return NULL;
+
+
+	// we need a )
+	token_t *token = next_token(src);
+	if (token->type == T_CLOSE_PAREN) {
+		destroy_token(token);
+	} else {
+		// WTF
+		free_node(content);
+		syntax_error("unexpected token '%s' (expected ')')", token_name(token));
+		destroy_token(token);
+		parse_exit();
+	}
+	
+	node_t *node = new_node(NODE_SUBSHELL);
+	node->single.child = content;
+	return node;
+}
+
+static node_t *parse_group(source_t *src) {
+	// we already parsed the {
+	node_t *content = parse_list(src, 1);
+	if (!content) return NULL;
+
+
+	// we need a }
+	token_t *token = next_token(src);
+	if (token->type == T_CLOSE_BRACKET) {
+		destroy_token(token);
+	} else {
+		// WTF
+		free_node(content);
+		syntax_error("unexpected token '%s' (expected '}')", token_name(token));
+		destroy_token(token);
+		parse_exit();
+	}
+	
+	node_t *node = new_node(NODE_GROUP);
+	node->single.child = content;
+	return node;
+}
+
 static void word_from_token(word_t *word, token_t *token) {
 	word->text  = strdup(token->value);
 	word->flags = token->flags;
 }
 
-static node_t *parse_simple_command(source_t *src) {
+static int parse_redir(source_t *src, token_t *first, redir_t *redir) {
+	token_t *last = next_token(src);
+	if (last->type != T_WORD) {
+		destroy_token(first);
+		syntax_error("unexpected token '%s' (expected 'word')", token_name(last));
+		destroy_token(last);
+		parse_exit();
+	}
+	word_from_token(&redir->dest, last);
+	switch (first->type) {
+	case T_DUP_IN:
+		redir->type = REDIR_DUP | REDIR_IN;
+		break;
+	case T_DUP_OUT:
+		redir->type = REDIR_DUP;
+		break;
+	case T_INFERIOR:
+		redir->type = REDIR_IN;
+		break;
+	case T_SUPERIOR:
+		redir->type = 0;
+		break;
+	case T_APPEND:
+		redir->type = REDIR_APPEND;
+		break;
+	}
+	if (first->digit == -1) {
+		redir->fd = redir->type & REDIR_IN ? STDIN_FILENO : STDOUT_FILENO;
+	} else {
+		redir->fd = first->digit;
+	}
+	return 0;
+}
+
+static node_t *parse_simple_command(source_t *src, token_t *token) {
+	// we have the first token
+	word_t word;
+	redir_t redir;
+	vector_t args   = {0};
+	vector_t redirs = {0};
+	init_vector(&args  , sizeof(word_t));
+	init_vector(&redirs, sizeof(redir_t));
+
+	for (;;) {
+		switch (token->type) {
+		case T_WORD:
+			word_from_token(&word, token);
+			vector_push_back(&args, &word);
+			break;
+		case T_DUP_IN:
+		case T_DUP_OUT:
+		case T_INFERIOR:
+		case T_SUPERIOR:
+		case T_APPEND:
+			parse_redir(src, token, &redir);
+			vector_push_back(&redirs, &redir);
+			break;
+		default:
+			goto end;
+		}
+		destroy_token(token);
+		token = next_token(src);
+	}
+end:
+	unget_token(src, token);
+
+	// we reached the end of the simple command
+	
+	node_t *node = new_node(NODE_CMD);
+	node->cmd.args       = args.data;
+	node->cmd.args_count = args.count;
+	node->redirs         = redirs.data;
+	node->redirs_count   = redirs.count;
+	return node;
+
+}
+
+// parse a command (can be a simple command , if/while/for, subshell, ...)
+static node_t *parse_command(source_t *src) {
 	src->lexer.hint = LEXER_COMMAND;
 	token_t *token = next_token(src);
 	
@@ -158,6 +285,7 @@ static node_t *parse_simple_command(source_t *src) {
 	}
 	src->lexer.hint = LEXER_ARGS;
 
+	// TODO : parse redirections on others than simple command
 	switch (token->type) {
 	case T_IF:
 		destroy_token(token);
@@ -168,46 +296,28 @@ static node_t *parse_simple_command(source_t *src) {
 	case T_UNTIL:
 		destroy_token(token);
 		return parse_loop(src, NODE_UNTIL);
-	case T_WORD:
-		// regular command
-		break;
+	case T_OPEN_PAREN:
+		destroy_token(token);
+		return parse_subshell(src);
+	case T_OPEN_BRACKET:
+		destroy_token(token);
+		return parse_group(src);
+	case T_WORD: // classic commands
+	case T_DUP_IN: // commands that start with a redir
+	case T_DUP_OUT:
+	case T_INFERIOR:
+	case T_SUPERIOR:
+	case T_APPEND:
+		return parse_simple_command(src, token);
 	default:
 		unget_token(src, token);
 		return NULL;
 	}
-
-	// we have the first string
-	word_t word;
-	word_from_token(&word, token);
-	vector_t args = {0};
-	init_vector(&args, sizeof(word_t));
-	vector_push_back(&args, &word);
-
-	for (;;) {
-		destroy_token(token);
-		token = next_token(src);
-		switch (token->type) {
-		case T_WORD:
-			word_from_token(&word, token);
-			vector_push_back(&args, &word);
-			continue;
-		default:
-			break;
-		}
-		break;
-	}
-	unget_token(src, token);
-	// we reached the end of the command
-	
-	node_t *node = new_node(NODE_CMD);
-	node->cmd.args       = args.data;
-	node->cmd.args_count = args.count;
-	return node;
 }
 
 // basicly a pipeline but without a !before it
 static node_t *parse_simple_pipeline(source_t *src) {
-	node_t *left_cmd = parse_simple_command(src);
+	node_t *left_cmd = parse_command(src);
 	if (!left_cmd) return NULL;
 
 	// are we a pipe ?
@@ -307,7 +417,9 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 					|| token->type == T_ELSE
 					|| token->type == T_FI
 					|| token->type == T_DO
-					|| token->type == T_DONE) {
+					|| token->type == T_DONE
+					|| token->type == T_CLOSE_PAREN
+					|| token->type == T_CLOSE_BRACKET) {
 				unget_token(src, token);
 				break;
 			}
@@ -345,6 +457,17 @@ static void print_depth(int depth) {
 	}
 }
 
+static void print_redirs(node_t *node, int depth) {
+	if (node->redirs_count == 0) return;
+	print_depth(depth);
+	fputs("redirs :\n", stderr);
+	for (size_t i=0; i<node->redirs_count; i++) {
+		redir_t *redir = &node->redirs[i];
+		print_depth(depth + 1);
+		fprintf(stderr, "fd : %d dest : %s\n", redir->fd, redir->dest.text);
+	}
+}
+
 void print_node(node_t *node, int depth) {
 	print_depth(depth);
 	switch (node->type) {
@@ -354,6 +477,7 @@ void print_node(node_t *node, int depth) {
 			print_depth(depth + 1);
 			fprintf(stderr, "arg%zu : %s\n", i, node->cmd.args[i].text);
 		}
+		print_redirs(node, depth);
 		break;
 	case NODE_IF:
 		fputs("if\n", stderr);
@@ -382,6 +506,14 @@ void print_node(node_t *node, int depth) {
 		break;
 	case NODE_NEGATE:
 		fputs("negate\n", stderr);
+		print_node(node->single.child , depth + 1);
+		break;
+	case NODE_SUBSHELL:
+		fputs("subshell\n", stderr);
+		print_node(node->single.child , depth + 1);
+		break;
+	case NODE_GROUP:
+		fputs("group\n", stderr);
 		print_node(node->single.child , depth + 1);
 		break;
 	case NODE_PIPE:

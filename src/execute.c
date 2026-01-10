@@ -40,6 +40,12 @@ static void execute_cmd(node_t *node, int in_fd, int out_fd, int flags) {
 		exit_status = 1;
 		return;
 	}
+	if (!*args) {
+		// empty command
+		// somtimes used to create files
+		exit_status = 0;
+		return;
+	}
 	int status;
 	if ((status = try_builtin(args_count(args), args)) >= 0) {
 		exit_status = status;
@@ -71,6 +77,7 @@ void execute(node_t *node, int in_fd, int out_fd, int flags) {
 	switch (node->type) {
 	case NODE_CMD:
 		execute_cmd(node, in_fd, out_fd, flags);
+		break;
 	case NODE_SEP:
 		execute(node->binary.left , in_fd, out_fd, flags);
 		execute(node->binary.right, in_fd, out_fd, flags);
@@ -107,6 +114,9 @@ void execute(node_t *node, int in_fd, int out_fd, int flags) {
 			if (exit_status == 0) break;
 			execute(node->loop.body, in_fd, out_fd, flags);
 		}
+		break;
+	case NODE_GROUP:
+		execute(node->single.child, in_fd, out_fd, flags);
 		break;
 	}
 }

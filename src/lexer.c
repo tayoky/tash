@@ -67,7 +67,7 @@ static int is_delimiter(int c) {
 
 #define APPEND(c) vector_push_back(buf, (char[]){c})
 
-static void handle_subshell(source_t *src, vector_t *buf, int is_sub) {
+static void handle_subshell(source_t *src, vector_t *buf, int *flags, int is_sub) {
 	if (is_sub > 1024) {
 		// wow the user is crazy
 		return;
@@ -86,6 +86,7 @@ static void handle_subshell(source_t *src, vector_t *buf, int is_sub) {
 				APPEND(CTLESC);
 				APPEND(c);
 			} else {
+				*flags |= WORD_HAS_QUOTE;
 				quote = quote == '\'' ? 0 : '\'';
 				APPEND(CTLQUOT);
 			}
@@ -96,6 +97,7 @@ static void handle_subshell(source_t *src, vector_t *buf, int is_sub) {
 				APPEND(c);
 			} else {
 				quote = quote == '"' ? 0 : '"';
+				*flags |= WORD_HAS_QUOTE;
 				APPEND(CTLQUOT);
 			}
 			break;
@@ -126,7 +128,7 @@ static void handle_subshell(source_t *src, vector_t *buf, int is_sub) {
 			}
 			APPEND(c);
 			if (peek_char(src) == '(') {
-				handle_subshell(src, buf, is_sub + 1);
+				handle_subshell(src, buf, flags, is_sub + 1);
 			}
 			break;
 		case ')':
@@ -170,6 +172,7 @@ token_t *next_token(source_t *src) {
 	token->value = NULL;
 	token->type  = T_NULL;
 	token->digit = -1;
+	token->flags = 0;
 
 	// skip spaces
 	int c = get_char(src);
@@ -253,7 +256,7 @@ token_t *next_token(source_t *src) {
 	vector_t buf = {0};
 	init_vector(&buf, sizeof(char));
 	unget_char(src, c);
-	handle_subshell(src, &buf, 0);
+	handle_subshell(src, &buf, &token->flags, 0);
 	vector_push_back(&buf, (char[]){'\0'});
 	token->value = buf.data;
 

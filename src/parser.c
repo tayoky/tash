@@ -143,7 +143,8 @@ static node_t *parse_if(source_t *src) {
 }
 
 static void word_from_token(word_t *word, token_t *token) {
-	word->text = strdup(token->value);
+	word->text  = strdup(token->value);
+	word->flags = token->flags;
 }
 
 static node_t *parse_simple_command(source_t *src) {

@@ -6,9 +6,10 @@
 #include <stdio.h>
 
 typedef struct token {
+	char *value;
 	int type;
 	int digit;
-	char *value;
+	int flags;
 } token_t;
 
 #define T_NULL           0

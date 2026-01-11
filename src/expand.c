@@ -61,9 +61,9 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 			APPEND('$');
 			return 0;
 		}
-		char *var = strndup(start, src - start);
+		char *var = xstrndup(start, src - start);
 		value = getvar(var);
-		free(var);
+		xfree(var);
 		src--;
 		break;
 	}
@@ -156,7 +156,7 @@ char **word_expansion(word_t *words, size_t words_count) {
 				// split
 				if (v.count == 0) break;
 				vector_push_back(&v, (char[]){'\0'});
-				str = strdup(v.data);
+				str = xstrdup(v.data);
 				vector_push_back(&strings, &str);
 				v.count = 0;
 				break;
@@ -168,14 +168,15 @@ char **word_expansion(word_t *words, size_t words_count) {
 		}
 		if (v.count) {
 			vector_push_back(&v, (char[]){'\0'});
-			str = strdup(v.data);
+			str = xstrdup(v.data);
 			vector_push_back(&strings, &str);
 		} else if (ptr == expanded && words[i].flags & WORD_HAS_QUOTE) {
 			// handle stuff like ""
-			str = strdup("");
+			str = xstrdup("");
 			vector_push_back(&strings, &str);
 		}
-		free(expanded);
+		xfree(expanded);
+		free_vector(&v);
 	}
 
 	str = NULL;
@@ -183,7 +184,7 @@ char **word_expansion(word_t *words, size_t words_count) {
 	return strings.data;
 error:
 	for (size_t i=0; i<strings.count; i++) {
-		free(*(char**)vector_at(&strings, i));
+		xfree(*(char**)vector_at(&strings, i));
 	}
 	free_vector(&strings);
 	return NULL;

@@ -11,14 +11,14 @@ void putvar(const char *name,const char *value){
 	//see if it already exist
 	for(size_t i=0; i<var_count; i++){
 		if(!strcmp(name,var[i].name)){
-			free(var[i].value);
-			var[i].value = strdup(value);
+			xfree(var[i].value);
+			var[i].value = xstrdup(value);
 			return;
 		}
 	}
-	var = realloc(var,(var_count+1) * sizeof(struct var));
-	var[var_count].name     = strdup(name);
-	var[var_count].value    = strdup(value);
+	var = xrealloc(var,(var_count+1) * sizeof(struct var));
+	var[var_count].name     = xstrdup(name);
+	var[var_count].value    = xstrdup(value);
 	var[var_count].exported = 0;
 	var_count++;
 }
@@ -39,9 +39,9 @@ void export_var(const char *name){
 			return;
 		}
 	}
-	var = realloc(var,(var_count+1) * sizeof(struct var));
-	var[var_count].name     = strdup(name);
-	var[var_count].value    = strdup("");
+	var = xrealloc(var,(var_count+1) * sizeof(struct var));
+	var[var_count].name     = xstrdup(name);
+	var[var_count].value    = xstrdup("");
 	var[var_count].exported = 1;
 	var_count++;
 }
@@ -51,7 +51,7 @@ void setup_environ(void){
 	environ[0] = NULL;
 	for(size_t i=0; i<var_count; i++){
 		if(!var[i].exported)continue;
-		char *env = malloc(strlen(var[i].name) + strlen(var[i].value) + 2);
+		char *env = xmalloc(strlen(var[i].name) + strlen(var[i].value) + 2);
 		sprintf(env,"%s=%s",var[i].name,var[i].value);
 		putenv(env);
 	}
@@ -59,17 +59,17 @@ void setup_environ(void){
 
 void setup_var(void){
 	for(size_t i=0; environ[i]; i++){
-		char *name = strdup(environ[i]);
+		char *name = xstrdup(environ[i]);
 		char *value = strchr(name,'=');
 		if(!value){
 			error("inavlid environ string '%s'",name);
-			free(name);
+			xfree(name);
 			continue;
 		}
 		*value = '\0';
 		value++;
 		putvar(name,value);
 		export_var(name);
-		free(name);
+		xfree(name);
 	}
 }

@@ -181,8 +181,7 @@ token_t *next_token(source_t *src) {
 		src->lexer.putback = NULL;
 		return token;
 	}
-	token_t *token = malloc(sizeof(token_t));
-	if (!token) return NULL;
+	token_t *token = xmalloc(sizeof(token_t));
 	token->value = NULL;
 	token->type  = T_NULL;
 	token->digit = -1;
@@ -329,6 +328,6 @@ token_t *next_token(source_t *src) {
 
 void destroy_token(token_t *token) {
 	if (!token) return;
-	free(token->value);
-	free(token);
+	xfree(token->value);
+	xfree(token);
 }

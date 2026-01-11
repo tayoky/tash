@@ -2,6 +2,7 @@
 #define _LIBUTILS_VECTOR_H
 
 #include <stdlib.h>
+#include <mem.h>
 
 typedef struct vector {
 	size_t count;
@@ -12,7 +13,7 @@ typedef struct vector {
 
 static inline void init_vector(vector_t *vector, size_t element_size){
 	if (vector->data) return;
-	vector->data = malloc(element_size);
+	vector->data = xmalloc(element_size);
 	vector->capacity = 1;
 	vector->count = 0;
 	vector->element_size = element_size;
@@ -20,7 +21,7 @@ static inline void init_vector(vector_t *vector, size_t element_size){
 
 static inline void free_vector(vector_t *vector){
 	if (!vector->data) return;
-	free(vector->data);
+	xfree(vector->data);
 	vector->data = NULL;
 	vector->count = 0;
 }
@@ -32,7 +33,7 @@ static inline void *vector_at(vector_t *vector, size_t index){
 static inline void vector_push_back(vector_t *vector, const void *element){
 	if (vector->count == vector->capacity) {
 		vector->capacity *= 2;
-		vector->data = realloc(vector->data, vector->capacity * vector->element_size);
+		vector->data = xrealloc(vector->data, vector->capacity * vector->element_size);
 	}
 
 	void *ptr = (char*)vector->data + ((vector->count++)  * vector->element_size);

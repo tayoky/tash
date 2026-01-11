@@ -16,7 +16,7 @@ static void parse_exit(void) {
 
 
 static node_t *new_node(int type) {
-	node_t *node = malloc(sizeof(node_t));
+	node_t *node = xmalloc(sizeof(node_t));
 	memset(node, 0, sizeof(node_t));
 	node->type = type;
 	return node;
@@ -24,22 +24,31 @@ static node_t *new_node(int type) {
 
 static void free_words(word_t *words, size_t count) {
 	for (size_t i=0; i<count; i++) {
-		free(words[i].text);
+		xfree(words[i].text);
 	}
-	free(words);
+	xfree(words);
 }
 static void free_word(word_t *word) {
-	free(word->text);
+	xfree(word->text);
+}
+
+static void free_redirs(redir_t *redirs, size_t count) {
+	for (size_t i=0; i<count; i++) {
+		free_word(&redirs[i].dest);
+	}
+	xfree(redirs);
 }
 
 void free_node(node_t *node) {
 	if (!node) return;
-	free(node->redirs);
+	free_redirs(node->redirs, node->redirs_count);
 	switch (node->type) {
 	case NODE_CMD:
 		free_words(node->cmd.args, node->cmd.args_count);
 		break;
 	case NODE_NEGATE:
+	case NODE_SUBSHELL:
+	case NODE_GROUP:
 		free_node(node->single.child);
 		break;
 	case NODE_PIPE:
@@ -53,6 +62,7 @@ void free_node(node_t *node) {
 	case NODE_FOR:
 		free_words(node->for_loop.words, node->for_loop.words_count);
 		free_word(&node->for_loop.var_name);
+		free_node(node->for_loop.body);
 		break;
 	case NODE_IF:
 		free_node(node->_if.condition);
@@ -65,11 +75,11 @@ void free_node(node_t *node) {
 		free_node(node->loop.body);
 		break;
 	}
-	free(node);
+	xfree(node);
 }
 
 static void word_from_token(word_t *word, token_t *token) {
-	word->text  = strdup(token->value);
+	word->text  = xstrdup(token->value);
 	word->flags = token->flags;
 }
 
@@ -198,6 +208,7 @@ static node_t *parse_for(source_t *src) {
 	node->for_loop.words_count = words.count;
 	node->for_loop.body        = body;
 	word_from_token(&node->for_loop.var_name, name);
+	destroy_token(name);
 	return node;
 }
 
@@ -325,6 +336,7 @@ static int parse_redir(source_t *src, token_t *first, redir_t *redir) {
 		parse_exit();
 	}
 	word_from_token(&redir->dest, last);
+	destroy_token(last);
 	switch (first->type) {
 	case T_DUP_IN:
 		redir->type = REDIR_DUP | REDIR_IN;
@@ -679,12 +691,15 @@ void print_node(node_t *node, int depth) {
 
 int interpret(source_t *src) {
 	if (setjmp(parser_buf)) {
+		xmem_stat();
 		return 1;
 	}
 	for (;;) {
+		xmem_reset();
 		node_t *node = parse_line(src);
 		if (!node) {
 			// we hit EOF
+			xmem_stat();
 			return exit_status;
 		}
 #ifdef DEBUG
@@ -692,8 +707,8 @@ int interpret(source_t *src) {
 #endif
 		execute(node, 0);
 		free_node(node);
+		xmem_stat();
 	}
-
 	return exit_status;
 }
 

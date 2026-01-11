@@ -255,8 +255,7 @@ int prompt_getc(void){
 			}
 			break;
 		case '\t':{
-			//TODO : auto completion
-			//find the start and end of current arg
+			// find the start and end of current arg
 			int search_command = 0;
 			int start = prompt_cursor > 0 ? prompt_cursor - 1 : 0;
 			while(start > 0 && !isblank(prompt_buf[start])){
@@ -278,7 +277,7 @@ int prompt_getc(void){
 				continue;
 			}
 
-			//try to find something in common in all possibimity
+			// try to find something in common in all possibimity
 			size_t common = strlen(fill[0]);
 			for(size_t i=0; fill[i]; i++){
 				if(strncmp(fill[0],fill[i],common)){
@@ -291,7 +290,7 @@ int prompt_getc(void){
 			}
 
 			if(common <= strlen(search) || !common){
-				//find the biggest string
+				// find the biggest string
 				size_t cell_size = 0;
 				size_t count= 0;
 				for(size_t i=0; fill[i]; i++){

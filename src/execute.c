@@ -13,10 +13,10 @@ int exit_status = 0;
 static void free_args(char **args) {
 	char **arg = args;
 	while (*arg) {
-		free(*arg);
+		xfree(*arg);
 		arg++;
 	}
-	free(args);
+	xfree(args);
 }
 
 static int args_count(char **args) {
@@ -115,6 +115,12 @@ static void execute_for(node_t *node, int flags) {
 	}
 
 	char **strings = word_expansion(node->for_loop.words, node->for_loop.words_count);
+	if (!strings) {
+		// expansion error
+		exit_status = 1;
+		return;
+	}
+
 	for (char **current = strings; *current; current++) {
 		putvar(node->for_loop.var_name.text, *current);
 		if (current[1]) {

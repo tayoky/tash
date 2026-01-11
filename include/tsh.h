@@ -3,6 +3,8 @@
 
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
+#include <vector.h>
 #include <stdio.h>
 
 typedef struct token {
@@ -56,6 +58,7 @@ typedef struct word {
 	char *text;
 	int flags;
 } word_t;
+
 #define WORD_HAS_QUOTE 0x01
 #define CTLESC  0x01
 #define CTLQUOT 0x02
@@ -97,6 +100,7 @@ typedef struct node {
 		} loop;
 	};
 } node_t;
+
 #define NODE_NULL     0
 #define NODE_CMD      1
 #define NODE_PIPE     2
@@ -133,6 +137,14 @@ typedef struct builtin {
 	char *name;
 } builtin_t;
 
+/*
+ * @brief represent a process group/job
+ */
+typedef struct group {
+	vector_t childs;
+	pid_t pid;
+} group_t;
+
 extern int _argc;
 extern char **_argv;
 extern int flags;
@@ -146,6 +158,7 @@ extern int exit_status;
 
 void error(const char *fmt,...);
 
+// lexer functions
 int peek_char(source_t *src);
 int get_char(source_t *src);
 token_t *next_token(source_t *src);
@@ -155,16 +168,36 @@ const char *token_name(token_t *);
 
 int try_builtin(int argc, char **argv);
 
+// interpret/execute
 int interpret(source_t *src);
 int eval(const char *str);
 void execute(node_t *node, int flags);
 char **word_expansion(word_t *words, size_t words_count);
 
+// jobs control
+
+/**
+ * @brief fork and create a new proc inside a group
+ * @param group the group in which to create
+ * @return 0 to child, pid to parent or -1 on error
+ */
+pid_t job_fork(group_t *group);
+
+/**
+ * @brief wait for a job/group to terminate
+ */
+int job_wait(group_t *group);
+int job_single(void);
+void job_init_group(group_t *group);
+void job_free_group(group_t *group);
+
+// prompt management
 void show_ps1(void);
 void show_ps2(void);
 void prompt_unget(int c);
 int prompt_getc(void);
 
+// variable management
 void putvar(const char *name,const char *value);
 char *getvar(const char *name);
 void export_var(const char *name);

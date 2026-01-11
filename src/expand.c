@@ -56,6 +56,8 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 				error("bad substitution");
 				return -1;
 			}
+			src--;
+			*ptr = src;
 			APPEND('$');
 			return 0;
 		}

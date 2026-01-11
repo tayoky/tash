@@ -8,13 +8,6 @@ int exit_status = 0;
 
 #define FLAG_NO_FORK 0x01
 
-static void set_exit_status(int status) {
-	if (WIFEXITED(status)) {
-		exit_status = WEXITSTATUS(status);
-	} else if(WIFSIGNALED(status)) {
-		exit_status = WTERMSIG(status) + 128;
-	}
-}
 
 static void free_args(char **args) {
 	char **arg = args;
@@ -54,27 +47,22 @@ static void execute_cmd(node_t *node, int flags) {
 		return;
 	}
 	if (!(flags & FLAG_NO_FORK)) {
-		pid_t child = fork();
-		if (child) {
-			setpgid(child, child);
+		if (job_single()) {
 			free_args(args);
-			waitpid(child, &status, 0);
-			set_exit_status(status);
 			return;
 		}
-		setpgid(0, 0);
 	}
 	execvp(args[0], args);
 	perror(args[0]);
 	free_args(args);
+	if (!(flags & FLAG_NO_FORK)) exit(1);
 	return;
 }
 
 static void execute_pipe(node_t *node, int flags) {
 	int in = -1;
-	vector_t childs = {0};
-	init_vector(&childs, sizeof(pid_t));
-	pid_t group = 0;
+	group_t group;
+	job_init_group(&group);
 	while (node->type == NODE_PIPE) {
 		node_t *left  = node->binary.left;
 		node_t *right = node->binary.right;
@@ -82,9 +70,8 @@ static void execute_pipe(node_t *node, int flags) {
 		pipe(pipefd);
 
 		// left child
-		pid_t child = fork();
+		pid_t child = job_fork(&group);
 		if (!child) {
-			setpgid(0, group);
 			if (in >= 0) {
 				dup2(in, STDIN_FILENO);
 				close(in);
@@ -95,9 +82,6 @@ static void execute_pipe(node_t *node, int flags) {
 			execute(left, flags | FLAG_NO_FORK);
 			exit(exit_status);
 		}
-		if (!group) group = child;
-		setpgid(child, group);
-		vector_push_back(&childs, &child);
 
 		if (in >= 0) {
 			close(in);
@@ -109,28 +93,21 @@ static void execute_pipe(node_t *node, int flags) {
 	}
 
 	// last child
-	pid_t child = fork();
+	pid_t child = job_fork(&group);
 	if (!child) {
-		setpgid(0, group);
 		dup2(in, STDIN_FILENO);
 		close(in);
 		execute(node, flags | FLAG_NO_FORK);
 		exit(exit_status);
 	}
-	setpgid(child, group);
 	close(in);
-	vector_push_back(&childs, &child);
 
-	int status;
-	for (size_t i=0; i<childs.count; i++) {
-		waitpid(*(pid_t*)vector_at(&childs, i), &status, 0);
-		set_exit_status(status);
-	}
+	job_wait(&group);
+	job_free_group(&group);
 }
 
 void execute(node_t *node, int flags) {
 	if (!node) return;
-	pid_t child;
 	switch (node->type) {
 	case NODE_CMD:
 		execute_cmd(node, flags);
@@ -164,7 +141,7 @@ void execute(node_t *node, int flags) {
 			exit_status = 0;
 			execute(node->loop.condition, flags & ~FLAG_NO_FORK);
 			if (exit_status != 0) break;
-			execute(node->loop.body, flags);
+			execute(node->loop.body, flags & ~FLAG_NO_FORK);
 		}
 		break;
 	case NODE_UNTIL:
@@ -172,24 +149,20 @@ void execute(node_t *node, int flags) {
 			exit_status = 0;
 			execute(node->loop.condition, flags & ~FLAG_NO_FORK);
 			if (exit_status == 0) break;
-			execute(node->loop.body, flags);
+			execute(node->loop.body, flags & ~FLAG_NO_FORK);
 		}
 		break;
 	case NODE_GROUP:
 		execute(node->single.child, flags);
 		break;
 	case NODE_SUBSHELL:
-		child = fork();
-		if (!child) {
-			execute(node->single.child, 0);
-			exit(exit_status);
-		} else if (child < 0) {
-			perror("fork");
-		} else {
-			int status;
-			waitpid(child, &status, 0);
-			exit_status = WEXITSTATUS(status);
+		if (!(flags & FLAG_NO_FORK)) {
+			if (job_single()) {
+				break;
+			}
 		}
+		execute(node->single.child, FLAG_NO_FORK);
+		if (!(flags & FLAG_NO_FORK)) exit(exit_status);
 		break;
 	}
 }

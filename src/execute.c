@@ -28,8 +28,22 @@ static int args_count(char **args) {
 	return argc;
 }
 
+static int apply_assignements(assign_t *assigns, size_t count, int export) {
+	for (size_t i=0; i<count; i++) {
+		char **val = word_expansion(&assigns[i].value, 1, 0);
+		if (!val) {
+			exit_status = 1;
+			return -1;
+		}
+		putvar(assigns[i].var, *val);
+		if (export) export_var(assigns[i].var);
+		free_args(val);
+	}
+	return 0;
+}
+
 static void execute_cmd(node_t *node, int flags) {
-	char **args = word_expansion(node->cmd.args, node->cmd.args_count);
+	char **args = word_expansion(node->cmd.args, node->cmd.args_count, 1);
 	if (!args) {
 		// expansion error
 		exit_status = 1;
@@ -37,7 +51,9 @@ static void execute_cmd(node_t *node, int flags) {
 	}
 	if (!*args) {
 		// empty command
-		// somtimes used to create files
+		// somtimes used to create files or do simple assignements
+		free_args(args);
+		if (apply_assignements(node->cmd.assigns, node->cmd.assigns_count, 0) < 0) return;
 		exit_status = 0;
 		return;
 	}
@@ -53,6 +69,8 @@ static void execute_cmd(node_t *node, int flags) {
 			return;
 		}
 	}
+	if (apply_assignements(node->cmd.assigns, node->cmd.assigns_count, 1) < 0) return;
+	setup_environ();
 	execvp(args[0], args);
 	perror(args[0]);
 	free_args(args);
@@ -114,7 +132,7 @@ static void execute_for(node_t *node, int flags) {
 		return;
 	}
 
-	char **strings = word_expansion(node->for_loop.words, node->for_loop.words_count);
+	char **strings = word_expansion(node->for_loop.words, node->for_loop.words_count, 1);
 	if (!strings) {
 		// expansion error
 		exit_status = 1;

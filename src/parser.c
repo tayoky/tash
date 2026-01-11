@@ -2,7 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <vector.h>
-#include <setjmp.h>
+#include <ctype.h>
 #include <tsh.h>
 
 static int parser_error = 0;
@@ -33,12 +33,21 @@ static void free_redirs(redir_t *redirs, size_t count) {
 	xfree(redirs);
 }
 
+static void free_assigns(assign_t *assigns, size_t count) {
+	for (size_t i=0; i<count; i++) {
+		free_word(&assigns[i].value);
+		xfree(assigns[i].var);
+	}
+	xfree(assigns);
+}
+
 void free_node(node_t *node) {
 	if (!node) return;
 	free_redirs(node->redirs, node->redirs_count);
 	switch (node->type) {
 	case NODE_CMD:
 		free_words(node->cmd.args, node->cmd.args_count);
+		free_assigns(node->cmd.assigns, node->cmd.assigns_count);
 		break;
 	case NODE_NEGATE:
 	case NODE_SUBSHELL:
@@ -72,7 +81,7 @@ void free_node(node_t *node) {
 	xfree(node);
 }
 
-static void word_from_token(word_t *word, token_t *token) {
+static void word_from_token(token_t *token, word_t *word) {
 	word->text  = xstrdup(token->value);
 	word->flags = token->flags;
 }
@@ -158,7 +167,7 @@ static node_t *parse_for(source_t *src) {
 		word_t word;
 		token = next_token(src);
 		while (token->type == T_WORD) {
-			word_from_token(&word, token);
+			word_from_token(token, &word);
 			vector_push_back(&words, &word);
 			destroy_token(token);
 			token = next_token(src);
@@ -204,7 +213,7 @@ static node_t *parse_for(source_t *src) {
 	node->for_loop.words       = words.data;
 	node->for_loop.words_count = words.count;
 	node->for_loop.body        = body;
-	word_from_token(&node->for_loop.var_name, name);
+	word_from_token(name, &node->for_loop.var_name);
 	destroy_token(name);
 	return node;
 
@@ -335,7 +344,7 @@ static int parse_redir(source_t *src, token_t *first, redir_t *redir) {
 		parser_error = 1;
 		return -1;
 	}
-	word_from_token(&redir->dest, last);
+	word_from_token(last, &redir->dest);
 	destroy_token(last);
 	switch (first->type) {
 	case T_DUP_IN:
@@ -362,19 +371,45 @@ static int parse_redir(source_t *src, token_t *first, redir_t *redir) {
 	return 0;
 }
 
+static int parse_assignement(token_t *token, assign_t *assign) {
+	if (token->type != T_WORD) return -1;
+	if (!isalpha(token->value[0]) && token->value[0] != '_') return -1;
+	char *equal = strchr(token->value, '=');
+	if (!equal) return -1;
+	char *ptr = token->value;
+	while (ptr < equal) {
+		if (!isalnum(*ptr) && *ptr != '_') return -1;
+		ptr++;
+	}
+	
+	assign->var = xstrndup(token->value, equal - token->value);
+	assign->value.flags = token->flags;
+	assign->value.text  = xstrdup(equal + 1);
+	return 0;
+}
+
 static node_t *parse_simple_command(source_t *src, token_t *token) {
 	// we have the first token
 	word_t word;
 	redir_t redir;
+	assign_t assign;
 	vector_t args   = {0};
 	vector_t redirs = {0};
+	vector_t assigns = {0};
 	init_vector(&args  , sizeof(word_t));
 	init_vector(&redirs, sizeof(redir_t));
+	init_vector(&assigns, sizeof(assign_t));
+
+	while (parse_assignement(token, &assign) >= 0) {
+		vector_push_back(&assigns, &assign);
+		destroy_token(token);
+		token = next_token(src);
+	}
 
 	for (;;) {
 		switch (token->type) {
 		case T_WORD:
-			word_from_token(&word, token);
+			word_from_token(token, &word);
 			vector_push_back(&args, &word);
 			break;
 		case T_DUP_IN:
@@ -397,15 +432,18 @@ end:
 	// we reached the end of the simple command
 	
 	node_t *node = new_node(NODE_CMD);
-	node->cmd.args       = args.data;
-	node->cmd.args_count = args.count;
-	node->redirs         = redirs.data;
-	node->redirs_count   = redirs.count;
+	node->cmd.args          = args.data;
+	node->cmd.args_count    = args.count;
+	node->cmd.assigns       = assigns.data;	
+	node->cmd.assigns_count = assigns.count;
+	node->redirs            = redirs.data;
+	node->redirs_count      = redirs.count;
 	return node;
 
 error:
 	free_words(args.data, args.count);
 	free_redirs(redirs.data, redirs.count);
+	free_assigns(assigns.data, assigns.count);
 	destroy_token(token);
 	parser_error = 1;
 	return NULL;
@@ -632,6 +670,14 @@ void print_node(node_t *node, int depth) {
 	print_depth(depth);
 	switch (node->type) {
 	case NODE_CMD:
+		if (node->cmd.assigns_count) {
+			fputs("cmd assigns : \n", stderr);
+			for (size_t i=0; i<node->cmd.assigns_count; i++) {
+				print_depth(depth + 1);
+				fprintf(stderr, "%s = %s\n", node->cmd.assigns[i].var, node->cmd.assigns[i].value.text);
+			}
+			print_depth(depth);
+		}
 		fputs("cmd args : \n", stderr);
 		for (size_t i=0; i<node->cmd.args_count; i++) {
 			print_depth(depth + 1);

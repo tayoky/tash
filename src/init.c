@@ -27,7 +27,6 @@ static void ex_script(const char *name){
 
 void init(void){
 	setup_var();
-	return;
 
 	if(flags & TASH_LOGIN){
 		//source .profile

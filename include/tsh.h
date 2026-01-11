@@ -73,6 +73,11 @@ typedef struct redir {
 #define REDIR_APPEND 0x02
 #define REDIR_DUP    0x04
 
+typedef struct assign {
+	word_t value;
+	char *var;
+} assign_t;
+
 typedef struct node {
 	int type;
 	redir_t *redirs;
@@ -87,7 +92,9 @@ typedef struct node {
 		} single;
 		struct {
 			word_t *args;
+			assign_t *assigns;
 			size_t args_count;
+			size_t assigns_count;
 		} cmd;
 		struct {
 			struct node *condition;
@@ -179,7 +186,7 @@ int try_builtin(int argc, char **argv);
 int interpret(source_t *src);
 int eval(const char *str);
 void execute(node_t *node, int flags);
-char **word_expansion(word_t *words, size_t words_count);
+char **word_expansion(word_t *words, size_t words_count, int split);
 
 // jobs control
 

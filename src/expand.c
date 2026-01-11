@@ -128,7 +128,7 @@ error:
 	return NULL;
 }
 
-char **word_expansion(word_t *words, size_t words_count) {
+char **word_expansion(word_t *words, size_t words_count, int split) {
 	vector_t strings = {0};
 	init_vector(&strings, sizeof(char*));
 	char *str;
@@ -154,6 +154,10 @@ char **word_expansion(word_t *words, size_t words_count) {
 			case '\t':
 			case '\n':
 				// split
+				if (!split) {
+					vector_push_back(&v, ptr);
+					break;
+				}
 				if (v.count == 0) break;
 				vector_push_back(&v, (char[]){'\0'});
 				str = xstrdup(v.data);
@@ -166,7 +170,7 @@ char **word_expansion(word_t *words, size_t words_count) {
 			}
 			ptr++;
 		}
-		if (v.count) {
+		if (v.count || !split) {
 			vector_push_back(&v, (char[]){'\0'});
 			str = xstrdup(v.data);
 			vector_push_back(&strings, &str);

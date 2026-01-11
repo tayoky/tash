@@ -22,11 +22,22 @@ static node_t *new_node(int type) {
 	return node;
 }
 
+static void free_words(word_t *words, size_t count) {
+	for (size_t i=0; i<count; i++) {
+		free(words[i].text);
+	}
+	free(words);
+}
+static void free_word(word_t *word) {
+	free(word->text);
+}
+
 void free_node(node_t *node) {
 	if (!node) return;
+	free(node->redirs);
 	switch (node->type) {
 	case NODE_CMD:
-		free(node->cmd.args);
+		free_words(node->cmd.args, node->cmd.args_count);
 		break;
 	case NODE_NEGATE:
 		free_node(node->single.child);
@@ -38,6 +49,10 @@ void free_node(node_t *node) {
 	case NODE_BG:
 		free_node(node->binary.left);
 		free_node(node->binary.right);
+		break;
+	case NODE_FOR:
+		free_words(node->for_loop.words, node->for_loop.words_count);
+		free_word(&node->for_loop.var_name);
 		break;
 	case NODE_IF:
 		free_node(node->_if.condition);
@@ -51,6 +66,11 @@ void free_node(node_t *node) {
 		break;
 	}
 	free(node);
+}
+
+static void word_from_token(word_t *word, token_t *token) {
+	word->text  = strdup(token->value);
+	word->flags = token->flags;
 }
 
 static node_t *parse_list(source_t *src, int multi_lines);
@@ -94,6 +114,90 @@ static node_t *parse_loop(source_t *src, int type) {
 	node_t *node = new_node(type);
 	node->loop.condition = condition;
 	node->loop.body      = body;
+	return node;
+}
+
+static node_t *parse_for(source_t *src) {
+	// we already parsed the for
+	token_t *name = next_token(src);
+	if (name->type != T_WORD) {
+		// not good
+		syntax_error("unexpected token '%s' (expected 'word')", token_name(name));
+		destroy_token(name);
+		parse_exit();
+	}
+	src->lexer.hint = LEXER_COMMAND;
+	token_t *in = next_token(src);
+	src->lexer.hint = LEXER_ARGS;
+
+	vector_t words = {0};
+	init_vector(&words, sizeof(word_t));
+	token_t *token;
+	if (in->type == T_IN) {
+		// we have a in
+		destroy_token(in);
+		word_t word;
+		token = next_token(src);
+		while (token->type == T_WORD) {
+			word_from_token(&word, token);
+			vector_push_back(&words, &word);
+			destroy_token(token);
+			token = next_token(src);
+		}
+	} else {
+		token = in;
+	}
+	if (token->type != T_SEMI_COLON && token->type != T_NEWLINE) {
+		free_words(words.data, words.count);
+		destroy_token(name);
+		syntax_error("unexpected token '%s' (expected ';' or '<newline>')", token_name(token));
+		destroy_token(token);
+		parse_exit();
+	}
+	destroy_token(token);
+
+	// we need a do
+	src->lexer.hint = LEXER_COMMAND;
+	token = next_token(src);
+	src->lexer.hint = LEXER_ARGS;
+	if (token->type == T_DO) {
+		destroy_token(token);
+	} else {
+		// syntax error
+		free_words(words.data, words.count);
+		destroy_token(name);
+		syntax_error("unexpected token '%s' (expected 'do')", token_name(token));
+		destroy_token(token);
+		parse_exit();
+	}
+
+	node_t *body = parse_list(src, 1);
+	if (!body) {
+		// TODO : syntax error
+		free_words(words.data, words.count);
+		destroy_token(name);
+		return NULL;
+	}
+
+	// we need a done
+	token = next_token(src);
+	if (token->type == T_DONE) {
+		destroy_token(token);
+	} else {
+		// syntax error
+		free_node(body);
+		free_words(words.data, words.count);
+		destroy_token(name);
+		syntax_error("unexpected token '%s' (expected 'done')", token_name(token));
+		destroy_token(token);
+		parse_exit();
+	}
+
+	node_t *node = new_node(NODE_FOR);
+	node->for_loop.words       = words.data;
+	node->for_loop.words_count = words.count;
+	node->for_loop.body        = body;
+	word_from_token(&node->for_loop.var_name, name);
 	return node;
 }
 
@@ -191,11 +295,6 @@ static node_t *parse_group(source_t *src) {
 	return node;
 }
 
-static void word_from_token(word_t *word, token_t *token) {
-	word->text  = strdup(token->value);
-	word->flags = token->flags;
-}
-
 static int parse_redir(source_t *src, token_t *first, redir_t *redir) {
 	token_t *last = next_token(src);
 	if (last->type != T_WORD) {
@@ -290,6 +389,9 @@ static node_t *parse_command(source_t *src) {
 	case T_IF:
 		destroy_token(token);
 		return parse_if(src);
+	case T_FOR:
+		destroy_token(token);
+		return parse_for(src);
 	case T_WHILE:
 		destroy_token(token);
 		return parse_loop(src, NODE_WHILE);
@@ -478,6 +580,14 @@ void print_node(node_t *node, int depth) {
 			fprintf(stderr, "arg%zu : %s\n", i, node->cmd.args[i].text);
 		}
 		print_redirs(node, depth);
+		break;
+	case NODE_FOR:
+		fputs("for\n", stderr);
+		print_depth(depth);
+		fprintf(stderr, "var name : %s\n", node->for_loop.var_name.text);
+		print_depth(depth);
+		fputs("body :\n", stderr);
+		print_node(node->for_loop.body, depth + 1);
 		break;
 	case NODE_IF:
 		fputs("if\n", stderr);

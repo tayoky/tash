@@ -24,6 +24,8 @@ const char *token_name(token_t *token) {
 		return "<word>";
 	case T_NEWLINE:
 		return "<newline>";
+	case T_EOF:
+		return "<eof>";
 	case T_BG:
 		return "&";
 	case T_PIPE:

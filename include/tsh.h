@@ -98,6 +98,12 @@ typedef struct node {
 			struct node *condition;
 			struct node *body;
 		} loop;
+		struct {
+			struct node *body;
+			word_t *words;
+			size_t words_count;
+			word_t var_name;
+		} for_loop;
 	};
 } node_t;
 
@@ -114,6 +120,7 @@ typedef struct node {
 #define NODE_UNTIL    10
 #define NODE_SUBSHELL 11
 #define NODE_GROUP    12
+#define NODE_FOR      13
 
 typedef struct lexer {
 	token_t *putback;

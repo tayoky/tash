@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <vector.h>
+#include <ctype.h>
 #include <tsh.h>
 
 int exit_status = 0;
@@ -106,6 +107,25 @@ static void execute_pipe(node_t *node, int flags) {
 	job_free_group(&group);
 }
 
+static void execute_for(node_t *node, int flags) {
+	if ((node->for_loop.var_name.flags & WORD_HAS_QUOTE) || strchr(node->for_loop.var_name.text, CTLESC) || !isalpha(node->for_loop.var_name.text[0])) {
+		error("invalid indentifier");
+		exit_status = 1;
+		return;
+	}
+
+	char **strings = word_expansion(node->for_loop.words, node->for_loop.words_count);
+	for (char **current = strings; *current; current++) {
+		putvar(node->for_loop.var_name.text, *current);
+		if (current[1]) {
+			execute(node->for_loop.body, flags & ~FLAG_NO_FORK);
+		} else {
+			execute(node->for_loop.body, flags);
+		}
+	}
+	free_args(strings);
+}
+
 void execute(node_t *node, int flags) {
 	if (!node) return;
 	switch (node->type) {
@@ -126,6 +146,9 @@ void execute(node_t *node, int flags) {
 	case NODE_OR:
 		execute(node->binary.left, flags & ~FLAG_NO_FORK);
 		if (exit_status != 0) execute(node->binary.right, flags);
+		break;
+	case NODE_FOR:
+		execute_for(node, flags);
 		break;
 	case NODE_IF:
 		exit_status = 0;

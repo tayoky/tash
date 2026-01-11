@@ -201,6 +201,7 @@ static node_t *parse_for(source_t *src) {
 	return node;
 }
 
+// FIXME : rewrite this to avoid recursivity
 static node_t *parse_if(source_t *src) {
 	// we already parsed the if
 	node_t *condition = parse_list(src, 1);
@@ -233,8 +234,28 @@ static node_t *parse_if(source_t *src) {
 			free_node(condition);
 			return NULL;
 		}
+	} else if (token->type == T_ELSE) {
+		destroy_token(token);
+		else_body = parse_list(src, 1);
+		if (!else_body) {
+			free_node(body);
+			free_node(condition);
+			return NULL;
+		}
+		// need a fi
+		token = next_token(src);
+		if (token->type == T_FI) {
+			destroy_token(token);
+		} else {
+			free_node(else_body);
+			free_node(body);
+			free_node(condition);
+			syntax_error("unexpected token '%s' (expected 'fi')", token_name(token));
+			destroy_token(token);
+			parse_exit();
+		}
 	} else {
-		// WTF
+		// syntax error
 		free_node(body);
 		free_node(condition);
 		syntax_error("unexpected token '%s'", token_name(token));

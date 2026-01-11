@@ -5,15 +5,9 @@
 #include <setjmp.h>
 #include <tsh.h>
 
-int parser_error = 0;
-static jmp_buf parser_buf;
+static int parser_error = 0;
 
-#define syntax_error(...) parser_error = 1;error(__VA_ARGS__)
-
-static void parse_exit(void) {
-	longjmp(parser_buf, 0);
-}
-
+#define syntax_error(...) error("syntax error : " __VA_ARGS__)
 
 static node_t *new_node(int type) {
 	node_t *node = xmalloc(sizeof(node_t));
@@ -85,62 +79,77 @@ static void word_from_token(word_t *word, token_t *token) {
 
 static node_t *parse_list(source_t *src, int multi_lines);
 
+// if cannot parse a list, automaticly trigger an error
+static node_t *must_parse_list(source_t *src, int multi_lines) {
+	node_t *node = parse_list(src, multi_lines);
+	if (node) return node;
+	if (!parser_error) {
+		token_t *token = next_token(src);
+		syntax_error("unexpected token '%s'", token_name(token));
+		destroy_token(token);
+
+		parser_error = 1;
+	}
+	return NULL;
+}
+
 static node_t *parse_loop(source_t *src, int type) {
 	// we already parsed the while/until
-	node_t *condition = parse_list(src, 1);
-	if (!condition) return NULL;
+	node_t *condition = must_parse_list(src, 1);
+	node_t *body = NULL;
+	if (!condition) goto error;
 
 	// we need a do
 	token_t *token = next_token(src);
 	if (token->type == T_DO) {
 		destroy_token(token);
 	} else {
-		// WTF
-		free_node(condition);
+		// syntax error
 		syntax_error("unexpected token '%s' (expected 'do')", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		goto error;
 	}
 
-	node_t *body = parse_list(src, 1);
-	if (!body) {
-		free_node(condition);
-		return NULL;
-	}
+	body = must_parse_list(src, 1);
+	if (!body) goto error;	
 
 	// we need a done
 	token = next_token(src);
 	if (token->type == T_DONE) {
 		destroy_token(token);
 	} else {
-		// WTF
-		free_node(condition);
-		free_node(body);
+		// syntax error
 		syntax_error("unexpected token '%s' (expected 'done')", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		goto error;
 	}
 
 	node_t *node = new_node(type);
 	node->loop.condition = condition;
 	node->loop.body      = body;
 	return node;
+
+error:
+	free_node(condition);
+	free_node(body);
+	parser_error = 1;
+	return NULL;
 }
 
 static node_t *parse_for(source_t *src) {
-	// we already parsed the for
+	// we already parsed the for keyword	
+	node_t *body = NULL;
+	vector_t words = {0};
 	token_t *name = next_token(src);
 	if (name->type != T_WORD) {
-		// not good
+		// syntax error
 		syntax_error("unexpected token '%s' (expected 'word')", token_name(name));
-		destroy_token(name);
-		parse_exit();
+		goto error;
 	}
 	src->lexer.hint = LEXER_COMMAND;
 	token_t *in = next_token(src);
 	src->lexer.hint = LEXER_ARGS;
 
-	vector_t words = {0};
 	init_vector(&words, sizeof(word_t));
 	token_t *token;
 	if (in->type == T_IN) {
@@ -158,11 +167,9 @@ static node_t *parse_for(source_t *src) {
 		token = in;
 	}
 	if (token->type != T_SEMI_COLON && token->type != T_NEWLINE) {
-		free_words(words.data, words.count);
-		destroy_token(name);
 		syntax_error("unexpected token '%s' (expected ';' or '<newline>')", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		goto error;
 	}
 	destroy_token(token);
 
@@ -174,20 +181,13 @@ static node_t *parse_for(source_t *src) {
 		destroy_token(token);
 	} else {
 		// syntax error
-		free_words(words.data, words.count);
-		destroy_token(name);
 		syntax_error("unexpected token '%s' (expected 'do')", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		goto error;
 	}
 
-	node_t *body = parse_list(src, 1);
-	if (!body) {
-		// TODO : syntax error
-		free_words(words.data, words.count);
-		destroy_token(name);
-		return NULL;
-	}
+	body = must_parse_list(src, 1);
+	if (!body) goto error;
 
 	// we need a done
 	token = next_token(src);
@@ -195,12 +195,9 @@ static node_t *parse_for(source_t *src) {
 		destroy_token(token);
 	} else {
 		// syntax error
-		free_node(body);
-		free_words(words.data, words.count);
-		destroy_token(name);
 		syntax_error("unexpected token '%s' (expected 'done')", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		goto error;
 	}
 
 	node_t *node = new_node(NODE_FOR);
@@ -210,12 +207,21 @@ static node_t *parse_for(source_t *src) {
 	word_from_token(&node->for_loop.var_name, name);
 	destroy_token(name);
 	return node;
+
+error:
+	free_node(body);
+	free_words(words.data, words.count);
+	destroy_token(name);
+	parser_error = 1;
+	return NULL;
 }
 
 // FIXME : rewrite this to avoid recursivity
 static node_t *parse_if(source_t *src) {
 	// we already parsed the if
-	node_t *condition = parse_list(src, 1);
+	node_t *condition = must_parse_list(src, 1);
+	node_t *body      = NULL;
+	node_t *else_body = NULL;
 	if (!condition) return NULL;
 
 	// we need a then
@@ -223,55 +229,42 @@ static node_t *parse_if(source_t *src) {
 	if (token->type == T_THEN) {
 		destroy_token(token);
 	} else {
-		// WTF
-		free_node(condition);
+		// syntax error
 		syntax_error("unexpected token '%s' (expected 'then')", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		goto error;
 	}
 
-	node_t *body = parse_list(src, 1);
-	node_t *else_body = NULL;
+	body = must_parse_list(src, 1);
+	if (!body) goto error;
 
-	// we need a fi or elif (TODO : else)
+	// we need a fi or elif or else
 	token = next_token(src);
 	if (token->type == T_FI) {
 		destroy_token(token);
 	} else if (token->type == T_ELIF) {
 		destroy_token(token);
 		else_body = parse_if(src);
-		if (!else_body) {
-			free_node(body);
-			free_node(condition);
-			return NULL;
-		}
+		if (!else_body) goto error;
 	} else if (token->type == T_ELSE) {
 		destroy_token(token);
-		else_body = parse_list(src, 1);
-		if (!else_body) {
-			free_node(body);
-			free_node(condition);
-			return NULL;
-		}
+		else_body = must_parse_list(src, 1);
+		if (!else_body) goto error;
+
 		// need a fi
 		token = next_token(src);
 		if (token->type == T_FI) {
 			destroy_token(token);
 		} else {
-			free_node(else_body);
-			free_node(body);
-			free_node(condition);
 			syntax_error("unexpected token '%s' (expected 'fi')", token_name(token));
 			destroy_token(token);
-			parse_exit();
+			goto error;
 		}
 	} else {
 		// syntax error
-		free_node(body);
-		free_node(condition);
 		syntax_error("unexpected token '%s'", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		goto error;
 	}
 
 	node_t *node = new_node(NODE_IF);
@@ -279,24 +272,31 @@ static node_t *parse_if(source_t *src) {
 	node->_if.body      = body;
 	node->_if.else_body = else_body;
 	return node;
+
+error:
+	free_node(body);
+	free_node(condition);
+	free_node(else_body);
+	parser_error = 1;
+	return NULL;
 }
 
 static node_t *parse_subshell(source_t *src) {
 	// we already parsed the (
-	node_t *content = parse_list(src, 1);
+	node_t *content = must_parse_list(src, 1);
 	if (!content) return NULL;
-
 
 	// we need a )
 	token_t *token = next_token(src);
 	if (token->type == T_CLOSE_PAREN) {
 		destroy_token(token);
 	} else {
-		// WTF
-		free_node(content);
+		// syntax error
 		syntax_error("unexpected token '%s' (expected ')')", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		free_node(content);
+		parser_error = 1;
+		return NULL;
 	}
 	
 	node_t *node = new_node(NODE_SUBSHELL);
@@ -306,20 +306,20 @@ static node_t *parse_subshell(source_t *src) {
 
 static node_t *parse_group(source_t *src) {
 	// we already parsed the {
-	node_t *content = parse_list(src, 1);
+	node_t *content = must_parse_list(src, 1);
 	if (!content) return NULL;
-
 
 	// we need a }
 	token_t *token = next_token(src);
 	if (token->type == T_CLOSE_BRACKET) {
 		destroy_token(token);
 	} else {
-		// WTF
-		free_node(content);
+		// syntax error
 		syntax_error("unexpected token '%s' (expected '}')", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		free_node(content);
+		parser_error = 1;
+		return NULL;
 	}
 	
 	node_t *node = new_node(NODE_GROUP);
@@ -330,10 +330,10 @@ static node_t *parse_group(source_t *src) {
 static int parse_redir(source_t *src, token_t *first, redir_t *redir) {
 	token_t *last = next_token(src);
 	if (last->type != T_WORD) {
-		destroy_token(first);
 		syntax_error("unexpected token '%s' (expected 'word')", token_name(last));
 		destroy_token(last);
-		parse_exit();
+		parser_error = 1;
+		return -1;
 	}
 	word_from_token(&redir->dest, last);
 	destroy_token(last);
@@ -382,7 +382,7 @@ static node_t *parse_simple_command(source_t *src, token_t *token) {
 		case T_INFERIOR:
 		case T_SUPERIOR:
 		case T_APPEND:
-			parse_redir(src, token, &redir);
+			if (parse_redir(src, token, &redir) < 0) goto error;
 			vector_push_back(&redirs, &redir);
 			break;
 		default:
@@ -403,6 +403,12 @@ end:
 	node->redirs_count   = redirs.count;
 	return node;
 
+error:
+	free_words(args.data, args.count);
+	free_redirs(redirs.data, redirs.count);
+	destroy_token(token);
+	parser_error = 1;
+	return NULL;
 }
 
 // parse a command (can be a simple command , if/while/for, subshell, ...)
@@ -466,12 +472,16 @@ static node_t *parse_simple_pipeline(source_t *src) {
 
 	node_t *right_cmd = parse_simple_pipeline(src);
 	if (!right_cmd) {
+		if (!parser_error) {
+			token = next_token(src);
+			syntax_error("unexpected token '%s'", token_name(token));
+			destroy_token(token);
+			parser_error = 1;
+		}
 		free_node(left_cmd);
-		token = next_token(src);
-		syntax_error("unexpected token '%s'", token_name(token));
-		destroy_token(token);
-		parse_exit();
+		return NULL;
 	}
+
 	node_t *node = new_node(NODE_PIPE);
 	node->binary.left  = left_cmd;
 	node->binary.right = right_cmd;
@@ -481,19 +491,26 @@ static node_t *parse_simple_pipeline(source_t *src) {
 static node_t *parse_pipeline(source_t *src) {
 	node_t *node = parse_simple_pipeline(src);
 	if (node) return node;
+	if (parser_error) return NULL;
+
 	token_t *token = next_token(src);
 	if (token->type != T_BANG) {
 		unget_token(src, token);
 		return NULL;
 	}
+
 	destroy_token(token);
 	node_t *child = parse_simple_pipeline(src);
 	if (!child) {
-		token = next_token(src);
-		syntax_error("unexpected token '%s'", token_name(token));
-		destroy_token(token);
-		parse_exit();
+		if (!parser_error) {
+			token = next_token(src);
+			syntax_error("unexpected token '%s'", token_name(token));
+			destroy_token(token);
+			parser_error = 1;
+		}
+		return NULL;
 	}
+
 	node = new_node(NODE_NEGATE);
 	node->single.child = child;
 	return node;
@@ -506,20 +523,24 @@ static node_t *parse_logic_list(source_t *src) {
 
 	for (;;) {
 		token_t *token = next_token(src);
-		if (!token) break;
 		if (token->type != T_AND && token->type != T_OR) {
 			unget_token(src, token);
 			break;
 		}
+
 		node_t *child = parse_pipeline(src);
 		if (!child) {
 			destroy_token(token);
+			if (!parser_error) {
+				token = next_token(src);
+				syntax_error("unexpected token '%s'", token_name(token));
+				destroy_token(token);
+				parser_error = 1;
+			}
 			free_node(node);
-			token = next_token(src);
-			syntax_error("unexpected token '%s'", token_name(token));
-			destroy_token(token);
-			parse_exit();
+			return NULL;
 		}
+
 		node_t *op_node = new_node(token->type == T_AND ? NODE_AND : NODE_OR);
 		op_node->binary.left  = node;
 		op_node->binary.right = child;
@@ -535,7 +556,6 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 
 	for (;;) {
 		token_t *token = next_token(src);
-		if (!token) break;
 		if (token->type != T_NEWLINE && token->type != T_SEMI_COLON) {
 			unget_token(src, token);
 			break;
@@ -548,21 +568,25 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 		if (!child) {
 			destroy_token(token);
 			token = next_token(src);
-			if (token->type == T_THEN || token->type == T_ELIF
+			if (!parser_error) {
+				if (token->type == T_THEN || token->type == T_ELIF
 					|| token->type == T_ELSE
 					|| token->type == T_FI
 					|| token->type == T_DO
 					|| token->type == T_DONE
 					|| token->type == T_CLOSE_PAREN
 					|| token->type == T_CLOSE_BRACKET) {
-				unget_token(src, token);
-				break;
+					unget_token(src, token);
+					break;
+				}
+				syntax_error("unexpected token '%s'", token_name(token));
+				destroy_token(token);
+				parser_error = 1;
 			}
 			free_node(node);
-			syntax_error("unexpected token '%s'", token_name(token));
-			destroy_token(token);
-			parse_exit();
+			return NULL;
 		}
+
 		node_t *sep_node = new_node(token->type == T_BG ? NODE_BG : NODE_SEP);
 		sep_node->binary.left  = node;
 		sep_node->binary.right = child;
@@ -575,13 +599,14 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 static node_t *parse_line(source_t *src) {
 	node_t *node = parse_list(src, 0);
 	if (node) return node;
+	if (parser_error) return NULL;
 	token_t *token = next_token(src);
 	if (token->type == T_EOF) {
 		destroy_token(token);
 	} else {
 		syntax_error("unexpected token '%s'", token_name(token));
 		destroy_token(token);
-		parse_exit();
+		parser_error = 1;
 	}
 	return NULL;
 }
@@ -690,16 +715,23 @@ void print_node(node_t *node, int depth) {
 
 
 int interpret(source_t *src) {
-	if (setjmp(parser_buf)) {
-		xmem_stat();
-		return 1;
-	}
 	for (;;) {
 		xmem_reset();
+		parser_error = 0;
 		node_t *node = parse_line(src);
 		if (!node) {
-			// we hit EOF
 			xmem_stat();
+			if (parser_error) {
+				// we have a syntax error
+				exit_status = 1;
+				// if interactive do not exit
+				if (flags & TASH_INTERACTIVE) {
+					// TODO : flush input or something
+					continue;
+				}
+				return exit_status;
+			}
+			// we hit EOF
 			return exit_status;
 		}
 #ifdef DEBUG

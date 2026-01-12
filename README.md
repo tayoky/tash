@@ -10,4 +10,5 @@ Soems of the features tash currently has :
 - && and || support
 - subshell with ( )
 - command groups with { xxx ; }
+- tilde expansion
 - variables (assignements, temporary environement variables and expansion)

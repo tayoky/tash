@@ -1,9 +1,10 @@
 #test tidle completion
 
-VAR=test
+VAR=~
 
 echo ~
 echo ~/test
 echo ~/$TEST
+echo $VAR
 echo \~
 echo "~"

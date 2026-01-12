@@ -14,6 +14,27 @@ static int is_special(int c) {
 
 #define APPEND(c) vector_push_back(dest, (char[]){c})
 
+static int tilde_expansion(vector_t *dest, const char *src) {
+	if (*src == '~') {
+		src++;
+		char *home = getvar("HOME");
+		if (!home) home = "/";
+		while (*home) {
+			if (is_special(*home)) {
+				APPEND(CTLESC);
+			}
+			vector_push_back(dest, home);
+			home++;
+		}
+	}
+	while (*src) {
+		vector_push_back(dest, src);
+		src++;
+	}
+	vector_push_back(dest, src);
+	return 0;
+}
+
 static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	// TODO : bracket support
 	const char *src = *ptr;
@@ -119,9 +140,10 @@ static char *expand_word(word_t *word) {
 	vector_t v2 = {0};
 	init_vector(&v1, sizeof(char));
 	init_vector(&v2, sizeof(char));
-	if (var_expansion(&v1, word->text) < 0) goto error;
-	free_vector(&v2);
-	return v1.data;
+	if (tilde_expansion(&v1, word->text) < 0) goto error;
+	if (var_expansion(&v2, v1.data) < 0) goto error;
+	free_vector(&v1);
+	return v2.data;
 error:
 	free_vector(&v1);
 	free_vector(&v2);

@@ -11,7 +11,7 @@ OBJ = $(SRC:$(SRCDIR)/%.c=$(BUILDDIR)/%.o)
 
 CFLAGS += -I$(INCLUDEDIR)
 CFLAGS += -DTASH_VERSION='"$(VERSION)"'
-CFLAGS += --std=c99
+CFLAGS += --std=c99 -D_POSIX_C_SOURCE=200809L
 
 all : $(BUILDDIR)/tash
 

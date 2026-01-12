@@ -162,6 +162,7 @@ typedef struct group {
 extern int _argc;
 extern char **_argv;
 extern int flags;
+extern int prompt;
 extern int exit_status;
 #define TASH_LOGIN       (1 << 0)
 #define TASH_INTERACTIVE (1 << 1)

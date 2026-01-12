@@ -196,7 +196,14 @@ int prompt_getc(void){
 		return last_char = (unsigned char)prompt_buf[prompt_index++];
 	}
 	if (last_char == '\n') {
-		show_ps1();
+		switch (prompt) {
+		case 1:
+			show_ps1();
+			break;
+		case 2:
+			show_ps2();
+			break;
+		}
 	}
 	if(tcgetattr(STDIN_FILENO,&old) < 0){
 		perror("tcgetattr");

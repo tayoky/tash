@@ -5,7 +5,8 @@
 #include <ctype.h>
 #include <tsh.h>
 
-static int parser_error = 0;
+static int parser_error;
+int prompt;
 
 #define syntax_error(...) error("syntax error : " __VA_ARGS__)
 
@@ -461,6 +462,8 @@ static node_t *parse_command(source_t *src) {
 	}
 	src->lexer.hint = LEXER_ARGS;
 
+	prompt = 2;
+
 	// TODO : parse redirections on others than simple command
 	switch (token->type) {
 	case T_IF:
@@ -764,6 +767,7 @@ int interpret(source_t *src) {
 	for (;;) {
 		xmem_reset();
 		parser_error = 0;
+		prompt = 1;
 		node_t *node = parse_line(src);
 		if (!node) {
 			xmem_stat();

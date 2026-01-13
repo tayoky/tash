@@ -133,6 +133,43 @@ int src(int argc,char **argv){
 	return exit_status;
 }
 
+int echo(int argc, char **argv) {
+	int newline = 1;
+	int i=1;
+	if (argc > 2 && !strcmp(argv[1], "-n")) {
+		newline = 0;
+		i++;
+	}
+
+	for (; i<argc; i++) {
+		int ret;
+		if (i == argc - 1) {
+			ret = printf("%s", argv[i]);
+		} else {
+			ret = printf("%s ", argv[i]);
+		}
+		if (ret < 0) {
+			perror("write");
+			return 1;
+		}
+	}
+	if (newline) {
+		if (putchar('\n') == EOF) {
+			perror("write");
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int _true(void) {
+	return 0;
+}
+
+int _false(void) {
+	return 1;
+}
+
 #define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
 static builtin_t builtin[] = {
 	CMD("cd"    ,cd),
@@ -141,6 +178,9 @@ static builtin_t builtin[] = {
 	CMD("source",src),
 	CMD("."     ,src),
 	CMD("set"   ,set),
+	CMD("echo"  ,echo),
+	CMD("true"  ,_true),
+	CMD("false" ,_false),
 };
 
 int try_builtin(int argc,char **argv){

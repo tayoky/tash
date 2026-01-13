@@ -12,3 +12,4 @@ Soems of the features tash currently has :
 - command groups with { xxx ; }
 - tilde expansion
 - variables (assignements, temporary environement variables and expansion)
+- redirections (only on commands)

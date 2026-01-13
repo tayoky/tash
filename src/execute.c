@@ -38,6 +38,16 @@ static int have_fd(int fd) {
 	return fcntl(fd, F_GETFD, 0) >= 0;
 }
 
+static void flush_fd(int fd) {
+	// cannot use a switch
+	// cause on some system stdin == stdout
+	if (fd == STDIN_FILENO) {
+		fflush(stdin);
+	} else if (fd == STDOUT_FILENO) {
+		fflush(stdout);
+	}
+}
+
 static int save_fd(int fd, saved_fd_t *saved) {
 	saved->original = fd;
 	if ((saved->flags = fcntl(fd, F_GETFD, 0)) < 0) {
@@ -64,6 +74,7 @@ static int save_fd(int fd, saved_fd_t *saved) {
 }
 
 static void restore_fd(saved_fd_t *saved) {
+	flush_fd(saved->original);
 	if (dup2(saved->saved, saved->original) < 0) {
 		perror("restore fd");
 		close(saved->saved);
@@ -131,6 +142,9 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 			}
 			vector_push_back(save, &saved);
 		}
+
+		// flush to avoid a bunch of problem
+		flush_fd(redirs[i].fd);
 
 		// actually apply redir
 		if (dup2(src, redirs[i].fd) < 0) {

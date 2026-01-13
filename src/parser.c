@@ -790,6 +790,8 @@ int interpret(source_t *src) {
 		execute(node, 0);
 		free_node(node);
 		xmem_stat();
+		// FIXME : we should do the check at more places
+		if (exit_status != 0 && (flags & TASH_ERR_EXIT)) break;
 	}
 	return exit_status;
 }

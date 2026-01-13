@@ -2,5 +2,5 @@
 ls .. | cat
 
 if true ; then
-	ls
-fi | grep sh
+	ls ..
+fi | grep md

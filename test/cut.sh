@@ -4,4 +4,4 @@ TEST="hello   world"
 
 echo TEST is $TEST
 echo "TEST is $TEST"
-echo $(echo "test   spaces")
+#echo $(echo "test   spaces")

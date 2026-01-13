@@ -5,6 +5,12 @@
 #include <ctype.h>
 #include <tsh.h>
 
+typedef struct saved_fd {
+	int original;
+	int saved;
+	int flags;
+} saved_fd_t;
+
 int exit_status = 0;
 
 #define FLAG_NO_FORK 0x01
@@ -28,10 +34,126 @@ static int args_count(char **args) {
 	return argc;
 }
 
+static int have_fd(int fd) {
+	return fcntl(fd, F_GETFD, 0) >= 0;
+}
+
+static int save_fd(int fd, saved_fd_t *saved) {
+	saved->original = fd;
+	if ((saved->flags = fcntl(fd, F_GETFD, 0)) < 0) {
+		perror("save fd");
+		return -1;
+	}
+#ifdef F_DUPFD_CLOEXEC
+	if ((saved->saved = fcntl(fd, F_DUPFD_CLOEXEC, 10)) < 0) {
+		perror("save fd");
+		return -1;
+	}
+#else
+	if ((saved->saved = dup(fd)) < 0) {
+		perror("save fd");
+		return -1;
+	}
+	if (fcntl(saved->saved, F_SETFD, FD_CLOEXEC) < 0) {
+		perror("save fd");
+		close(saved->saved);
+		return -1;
+	}
+#endif
+	return 0;
+}
+
+static void restore_fd(saved_fd_t *saved) {
+	if (dup2(saved->saved, saved->original) < 0) {
+		perror("restore fd");
+		close(saved->saved);
+		return;
+	}
+	if (fcntl(saved->original, F_SETFD, saved->flags) < 0) {
+		perror("restore fd");
+	}
+	close(saved->saved);
+}
+
+static void restore_fds(vector_t *save) {
+	saved_fd_t *saved = save->data;
+	for (size_t i=0; i<save->count; i++) {
+		restore_fd(&saved[i]);
+	}
+	free_vector(save);
+}
+
+static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
+	saved_fd_t saved;
+	for (size_t i=0; i<count; i++) {
+		char **val = word_expansion(&redirs[i].dest, 1, 1);
+		if (!val) {
+			// expansion error
+			goto error;
+		}
+		if (!val[0] || val[1]) {
+			// ambiguous
+			error("ambiguous redirection");
+			free_args(val);
+			goto error;
+		}
+
+		int src;
+		int src_is_fd = 0;
+		if (redirs[i].type & REDIR_DUP) {
+			char *end;
+			src = strtol(*val, &end, 10);
+			src_is_fd = 1;
+		} else {
+			int flags;
+			if (redirs[i].type & REDIR_IN) {
+				flags = O_RDONLY;
+			} else {
+				flags = O_WRONLY | O_CREAT;
+				if (redirs[i].type & REDIR_APPEND) {
+					flags |= O_APPEND;
+				} else {
+					flags |= O_TRUNC;
+				}
+			}
+			src = open(*val, flags, 0777);
+			if (src < 0) {
+				perror(*val);
+				free_args(val);
+				goto error;
+			}
+		}
+
+		// save before apply if neccesary
+		if (have_fd(redirs[i].fd)) {
+			if (save_fd(redirs[i].fd, &saved) < 0) {
+				goto error;
+			}
+			vector_push_back(save, &saved);
+		}
+
+		// actually apply redir
+		if (dup2(src, redirs[i].fd) < 0) {
+			perror(*val);
+			if (!src_is_fd) close(src);
+			free_args(val);
+			goto error;
+		}
+		if (!src_is_fd) close(src);
+		free_args(val);
+	}
+	return 0;
+error:
+	restore_fds(save);
+	exit_status = 1;
+	return -1;
+}
+
 static int apply_assignements(assign_t *assigns, size_t count, int export) {
 	for (size_t i=0; i<count; i++) {
 		char **val = word_expansion(&assigns[i].value, 1, 0);
 		if (!val) {
+			// expansion error
 			exit_status = 1;
 			return -1;
 		}
@@ -152,6 +274,9 @@ static void execute_for(node_t *node, int flags) {
 
 void execute(node_t *node, int flags) {
 	if (!node) return;
+	vector_t redirs_save = {0};
+	init_vector(&redirs_save, sizeof(saved_fd_t));
+	if (apply_redirs(node->redirs, node->redirs_count, &redirs_save) < 0) return;
 	switch (node->type) {
 	case NODE_CMD:
 		execute_cmd(node, flags);
@@ -212,4 +337,5 @@ void execute(node_t *node, int flags) {
 		if (!(flags & FLAG_NO_FORK)) exit(exit_status);
 		break;
 	}
+	restore_fds(&redirs_save);
 }

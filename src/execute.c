@@ -13,9 +13,20 @@ typedef struct saved_fd {
 } saved_fd_t;
 
 int exit_status = 0;
+int break_depth = 0;
+int continue_depth = 0;
+int loop_depth = 0;
 
 #define FLAG_NO_FORK 0x01
-
+#define BREAK_CHECK if (break_depth > 0) {\
+	break_depth--;\
+	break;\
+}
+#define CONTINUE_CHECK if (continue_depth > 0) {\
+	continue_depth--;\
+	if (continue_depth > 0) break;\
+	else continue;\
+}
 
 static void free_args(char **args) {
 	char **arg = args;
@@ -276,6 +287,7 @@ static void execute_for(node_t *node, int flags) {
 		return;
 	}
 
+	loop_depth++;
 	for (char **current = strings; *current; current++) {
 		putvar(node->for_loop.var_name.text, *current);
 		if (current[1]) {
@@ -283,13 +295,17 @@ static void execute_for(node_t *node, int flags) {
 		} else {
 			execute(node->for_loop.body, flags);
 		}
+		BREAK_CHECK
+		CONTINUE_CHECK
 	}
+	loop_depth--;
 	free_args(strings);
 }
 
 // TODO : stop everything on SIGINT
 void execute(node_t *node, int flags) {
 	if (!node) return;
+	if (break_depth > 0 || continue_depth > 0) return;
 	vector_t redirs_save = {0};
 	init_vector(&redirs_save, sizeof(saved_fd_t));
 	if (apply_redirs(node->redirs, node->redirs_count, &redirs_save) < 0) return;
@@ -325,20 +341,32 @@ void execute(node_t *node, int flags) {
 		}
 		break;
 	case NODE_WHILE:
+		loop_depth++;
 		for (;;) {
 			exit_status = 0;
 			execute(node->loop.condition, flags & ~FLAG_NO_FORK);
 			if (exit_status != 0) break;
+			BREAK_CHECK
+			CONTINUE_CHECK
 			execute(node->loop.body, flags & ~FLAG_NO_FORK);
+			BREAK_CHECK
+			CONTINUE_CHECK
 		}
+		loop_depth--;
 		break;
 	case NODE_UNTIL:
+		loop_depth++;
 		for (;;) {
 			exit_status = 0;
 			execute(node->loop.condition, flags & ~FLAG_NO_FORK);
 			if (exit_status == 0) break;
+			BREAK_CHECK
+			CONTINUE_CHECK
 			execute(node->loop.body, flags & ~FLAG_NO_FORK);
+			BREAK_CHECK
+			CONTINUE_CHECK
 		}
+		loop_depth--;
 		break;
 	case NODE_NEGATE:
 		execute(node->single.child, flags);

@@ -60,7 +60,7 @@ int exit_cmd(int argc,char **argv){
 		exit(status);
 	}
 
-	exit(0);
+	exit(exit_status);
 }
 
 int export(int argc,char **argv){
@@ -169,17 +169,65 @@ int _false(void) {
 	return 1;
 }
 
+int _break(int argc, char **argv) {
+	if (loop_depth == 0) {
+		error("break : 'break' only work in 'while', 'until' and 'for' loops");
+		return 0;
+	}
+	if (argc < 2) {
+		break_depth = 1;
+		return 0;
+	} else if (argc == 2) {
+		char *end;
+		break_depth = strtol(argv[1], &end, 10);
+		if (end == argv[1]) {
+			error("break : numeric argument required");
+			return 1;
+		}
+		if (break_depth > loop_depth) break_depth = loop_depth;
+		return 0;
+	} else {
+		error("break : too many arguments");
+		return 1;
+	}
+}
+
+int _continue(int argc, char **argv) {
+	if (loop_depth == 0) {
+		error("continue : 'continue' only work in 'while', 'until' and 'for' loops");
+		return 0;
+	}
+	if (argc < 2) {
+		continue_depth = 1;
+		return 0;
+	} else if (argc == 2) {
+		char *end;
+		continue_depth = strtol(argv[1], &end, 10);
+		if (end == argv[1]) {
+			error("continue : numeric argument required");
+			return 1;
+		}
+		if (continue_depth > loop_depth) continue_depth = loop_depth;
+		return 0;
+	} else {
+		error("continue : too many arguments");
+		return 1;
+	}
+}
+
 #define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
 static builtin_t builtin[] = {
-	CMD("cd"    ,cd),
-	CMD("exit"  ,exit_cmd),
-	CMD("export",export),
-	CMD("source",src),
-	CMD("."     ,src),
-	CMD("set"   ,set),
-	CMD("echo"  ,echo),
-	CMD("true"  ,_true),
-	CMD("false" ,_false),
+	CMD("cd"      ,cd),
+	CMD("exit"    ,exit_cmd),
+	CMD("export"  ,export),
+	CMD("source"  ,src),
+	CMD("."       ,src),
+	CMD("set"     ,set),
+	CMD("echo"    ,echo),
+	CMD("true"    ,_true),
+	CMD("false"   ,_false),
+	CMD("break"   ,_break),
+	CMD("continue",_continue),
 };
 
 int try_builtin(int argc,char **argv){

@@ -31,6 +31,8 @@ void init(void){
 	shell_pgid = getpgid(0);
 	setup_var();
 
+	job_control_setup();
+
 	if (flags & TASH_LOGIN) {
 		// source .profile
 		ex_script(".profile");
@@ -41,5 +43,6 @@ void init(void){
 
 	if (flags & TASH_INTERACTIVE) {
 		flags |= TASH_JOB_CONTROL;
+		job_control_setup();
 	}
 }

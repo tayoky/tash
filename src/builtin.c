@@ -35,6 +35,9 @@ int set(int argc,char **argv){
 		default:
 			goto invalid;
 		}
+		if (mask & TASH_JOB_CONTROL) {
+			job_control_setup();
+		}
 		continue;
 invalid:
 		error("set : invalid option : '%s'",argv[i]);

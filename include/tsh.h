@@ -210,6 +210,7 @@ int job_wait(group_t *group);
 int job_single(void);
 void job_init_group(group_t *group);
 void job_free_group(group_t *group);
+void job_control_setup(void);
 
 // prompt management
 void show_ps1(void);

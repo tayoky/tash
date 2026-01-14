@@ -17,6 +17,16 @@ static void report_termination(int status) {
 	}
 }
 
+void job_control_setup(void) {
+	if (flags & TASH_JOB_CONTROL) {
+		signal(SIGTTOU, SIG_IGN);
+		signal(SIGTTIN, SIG_IGN);
+	} else {
+		signal(SIGTTOU, SIG_DFL);
+		signal(SIGTTIN, SIG_DFL);
+	}
+}
+
 void job_init_group(group_t *group) {
 	group->pid = 0;
 	group->childs.data = NULL;
@@ -33,12 +43,22 @@ pid_t job_fork(group_t *group) {
 		// do not make a new group if already in a new one
 		if (flags & TASH_JOB_CONTROL) setpgid(0, group->pid);
 		// disable job control to avoid chaos
-		flags &= ~TASH_JOB_CONTROL;
+		if (flags & TASH_JOB_CONTROL) {
+			flags &= ~TASH_JOB_CONTROL;
+			job_control_setup();
+		}
 		return 0;
 	}
 	if (child < 0) return child;
-	if (!group->pid) group->pid = child;
-	if (flags & TASH_JOB_CONTROL) setpgid(child, group->pid);
+	if (flags & TASH_JOB_CONTROL) {
+		setpgid(child, group->pid);
+	}
+	if (!group->pid) {
+		group->pid = child;
+		if (flags & TASH_JOB_CONTROL) {
+			tcsetpgrp(STDIN_FILENO, group->pid);
+		}
+	}
 	vector_push_back(&group->childs, &child);
 	return child;
 }
@@ -48,6 +68,9 @@ int job_wait(group_t *group) {
 	for (size_t i=0; i<group->childs.count; i++) {
 		waitpid(*(pid_t*)vector_at(&group->childs, i), &status, 0);
 		report_termination(status);
+	}
+	if (flags & TASH_JOB_CONTROL) {
+		tcsetpgrp(STDIN_FILENO, getpgid(0));
 	}
 	return 0;
 }

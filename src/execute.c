@@ -287,6 +287,7 @@ static void execute_for(node_t *node, int flags) {
 	free_args(strings);
 }
 
+// TODO : stop everything on SIGINT
 void execute(node_t *node, int flags) {
 	if (!node) return;
 	vector_t redirs_save = {0};
@@ -338,6 +339,10 @@ void execute(node_t *node, int flags) {
 			if (exit_status == 0) break;
 			execute(node->loop.body, flags & ~FLAG_NO_FORK);
 		}
+		break;
+	case NODE_NEGATE:
+		execute(node->single.child, flags);
+		exit_status = !exit_status;
 		break;
 	case NODE_GROUP:
 		execute(node->single.child, flags);

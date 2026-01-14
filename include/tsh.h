@@ -165,11 +165,14 @@ extern char **_argv;
 extern int flags;
 extern int prompt;
 extern int exit_status;
+extern pid_t shell_pid;
+extern pid_t shell_pgid;
 #define TASH_LOGIN       (1 << 0)
 #define TASH_INTERACTIVE (1 << 1)
 #define TASH_SUBSHELL    (1 << 2)
 #define TASH_ERR_EXIT    (1 << 3) // exit on error
 #define TASH_UNSET_EXIT  (1 << 4) // exit on unset
+#define TASH_JOB_CONTROL (1 << 5)
 #define arraylen(ar) (sizeof(ar)/sizeof(*ar))
 
 void error(const char *fmt,...);
@@ -187,6 +190,7 @@ int try_builtin(int argc, char **argv);
 // interpret/execute
 int interpret(source_t *src);
 int eval(const char *str);
+int eval_script(const char *pathname);
 void execute(node_t *node, int flags);
 char **word_expansion(word_t *words, size_t words_count, int split);
 

@@ -26,7 +26,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	char buf[32];
 	switch (*src) {
 	case '$':
-		sprintf(buf, "%ld", (long)getpid());
+		sprintf(buf, "%ld", (long)shell_pid);
 		value = buf;
 		break;
 	case '?':

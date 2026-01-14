@@ -30,12 +30,15 @@ void job_free_group(group_t *group) {
 pid_t job_fork(group_t *group) {
 	pid_t child = fork();
 	if (!child) {
-		setpgid(0, group->pid);
+		// do not make a new group if already in a new one
+		if (flags & TASH_JOB_CONTROL) setpgid(0, group->pid);
+		// disable job control to avoid chaos
+		flags &= ~TASH_JOB_CONTROL;
 		return 0;
 	}
 	if (child < 0) return child;
 	if (!group->pid) group->pid = child;
-	setpgid(child, group->pid);
+	if (flags & TASH_JOB_CONTROL) setpgid(child, group->pid);
 	vector_push_back(&group->childs, &child);
 	return child;
 }

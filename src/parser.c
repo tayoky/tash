@@ -827,3 +827,16 @@ int eval(const char *str) {
 	};
 	return interpret(&src);
 }
+
+int eval_script(const char *pathname) {
+	FILE *script = fopen(pathname, "re");
+	if (!script) {
+		perror(pathname);
+		exit_status = 1;
+		return exit_status;
+	}
+	source_t src = SRC_FILE(script);
+	interpret(&src);	
+	fclose(script);
+	return exit_status;
+}

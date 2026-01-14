@@ -81,15 +81,7 @@ int main(int argc,char **argv){
 		_argc = argc - i;
 		_argv = &argv[i];
 		init();
-		FILE *script = fopen(argv[i],"re");
-		if(!script){
-			perror(argv[i]);
-			return 1;
-		}
-		source_t src = SRC_FILE(script);
-		int ret = interpret(&src);
-		fclose(script);
-		return ret;
+		return eval_script(argv[i]);
 	} else {
 		// automatic detection of tty when no script is given
 		if(isatty(STDIN_FILENO) == 1){

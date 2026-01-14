@@ -17,6 +17,9 @@ int set(int argc,char **argv){
 			case 'u':
 				mask |= TASH_UNSET_EXIT;
 				break;
+			case 'm':
+				mask |= TASH_JOB_CONTROL;
+				break;
 			default:
 				goto invalid;
 			}
@@ -115,19 +118,12 @@ int src(int argc,char **argv){
 		return 1;
 	}
 
-	FILE *script = fopen(argv[1],"r");
-	if(!script){
-		perror(argv[1]);
-		return 1;
-	}
-	//save argc/argv to restore after
+	// save argc/argv to restore after
 	int old_argc = _argc;
 	char **old_argv = _argv;
 	_argc = argc - 1;
 	_argv = &argv[1];
-	source_t src = SRC_FILE(script);
-	interpret(&src);
-	fclose(script);
+	eval_script(argv[1]);
 	_argc = old_argc;
 	_argv = old_argv;
 	return exit_status;

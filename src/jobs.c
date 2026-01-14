@@ -1,5 +1,6 @@
 #include <sys/wait.h>
 #include <termios.h>
+#include <signal.h>
 #include <unistd.h>
 #include <string.h>
 #include <vector.h>

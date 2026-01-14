@@ -154,8 +154,11 @@ int echo(int argc, char **argv) {
 	}
 	if (newline) {
 		if (putchar('\n') == EOF) {
+			// HACK workaround for a weird stanix bug
+#ifndef __stanix__
 			perror("write");
 			return 1;
+#endif
 		}
 	}
 	return 0;

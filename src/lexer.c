@@ -81,14 +81,13 @@ static int is_delimiter(int c) {
 
 #define APPEND(c) vector_push_back(buf, (char[]){c})
 
-static void handle_subshell(source_t *src, vector_t *buf, int *flags, int is_sub) {
+static void handle_subshell(source_t *src, vector_t *buf, int *flags, int c, int is_sub) {
 	if (is_sub > 1024) {
 		// wow the user is crazy
 		return;
 	}
 
 	int quote = 0;
-	int c = get_char(src);
 	for (;;) {
 		if (quote == 0 && is_delimiter(c) && !is_sub) {
 			unget_char(src, c);
@@ -142,7 +141,9 @@ static void handle_subshell(source_t *src, vector_t *buf, int *flags, int is_sub
 			}
 			APPEND(c);
 			if (peek_char(src) == '(') {
-				handle_subshell(src, buf, flags, is_sub + 1);
+				c = get_char(src);
+				if (c == EOF) return;
+				handle_subshell(src, buf, flags, c, is_sub + 1);
 			}
 			break;
 		case ')':
@@ -268,8 +269,7 @@ token_t *next_token(source_t *src) {
 	// we have a word
 	vector_t buf = {0};
 	init_vector(&buf, sizeof(char));
-	unget_char(src, c);
-	handle_subshell(src, &buf, &token->flags, 0);
+	handle_subshell(src, &buf, &token->flags, c, 0);
 	vector_push_back(&buf, (char[]){'\0'});
 	token->value = buf.data;
 

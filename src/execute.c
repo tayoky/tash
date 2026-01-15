@@ -219,6 +219,7 @@ static void execute_cmd(node_t *node, int flags) {
 	}
 	if (apply_assignements(node->cmd.assigns, node->cmd.assigns_count, 1) < 0) return;
 	setup_environ();
+	fflush(stdout);
 	execvp(args[0], args);
 	perror(args[0]);
 	free_args(args);

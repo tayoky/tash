@@ -7,7 +7,7 @@ cd test
 
 rm -f $(find -not -name "*.sh" -type f)
 
-for TEST in $(ls) ; do
+for TEST in *.sh ; do
 	$SHELL1 $TEST > $TEST-$SHELL1.out
 	$SHELL2 $TEST > $TEST-$SHELL2.out
 	if diff -s $TEST-$SHELL1.out $TEST-$SHELL2.out > /dev/null ; then

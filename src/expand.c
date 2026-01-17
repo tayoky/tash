@@ -143,23 +143,59 @@ error:
 	return NULL;
 }
 
+static void remove_ctlesc(char *str) {
+	char *src = str;
+	char *dest = str;
+	while (*src) {
+		if (*src != CTLESC) *(dest++) = *src;
+		src++;
+	}
+	*dest = '\0';
+}
+
+// do word spliting and pathname expansion
+static void split_word(vector_t *strings, vector_t *v, int *has_globing) {
+	char *str;
+	vector_push_back(v, (char[]){'\0'});
+	if (*has_globing && !(flags & TASH_NO_GLOBING)) {
+		char **files = glob_files(v->data);
+		if (!*files) {
+			xfree(files);
+			goto no_globing;
+		}
+		for (char **file = files; *file; file++) {
+			vector_push_back(strings, file);
+		}
+		xfree(files);
+	} else {
+no_globing:
+		str = xstrdup(v->data);
+		// remove CTLESC we don't need them anymore
+		remove_ctlesc(str);
+		vector_push_back(strings, &str);
+	}
+	v->count = 0;
+	*has_globing = 0;
+}
+
 char **word_expansion(word_t *words, size_t words_count, int split) {
 	vector_t strings = {0};
 	init_vector(&strings, sizeof(char*));
-	char *str;
 
 	for (size_t i=0; i<words_count; i++) {
 		char *expanded = expand_word(&words[i]);
 		if (!expanded) goto error;
 
-		// split the field
+		// now do spliting + pathname expansion
 		vector_t v = {0};
 		init_vector(&v, sizeof(char));
 		char *ptr = expanded;
-		int has_char = 0;
+		int has_split = 0;
+		int has_globing = 0;
 		while (*ptr) {
 			switch (*ptr) {
 			case CTLESC:
+				vector_push_back(&v, ptr);
 				ptr++;
 				vector_push_back(&v, ptr);
 				break;
@@ -174,11 +210,13 @@ char **word_expansion(word_t *words, size_t words_count, int split) {
 					break;
 				}
 				if (v.count == 0) break;
-				vector_push_back(&v, (char[]){'\0'});
-				str = xstrdup(v.data);
-				vector_push_back(&strings, &str);
-				v.count = 0;
+				split_word(&strings, &v, &has_globing);
+				has_split = 1;
 				break;
+			case '*':
+			case '?':
+				has_globing = 1;
+				// fallthrough
 			default:
 				vector_push_back(&v, ptr);
 				break;
@@ -186,19 +224,17 @@ char **word_expansion(word_t *words, size_t words_count, int split) {
 			ptr++;
 		}
 		if (v.count || !split) {
-			vector_push_back(&v, (char[]){'\0'});
-			str = xstrdup(v.data);
-			vector_push_back(&strings, &str);
-		} else if (ptr == expanded && words[i].flags & WORD_HAS_QUOTE) {
+			split_word(&strings, &v, &has_globing);
+		} else if (!has_split && (words[i].flags & WORD_HAS_QUOTE)) {
 			// handle stuff like ""
-			str = xstrdup("");
+			char *str = xstrdup("");
 			vector_push_back(&strings, &str);
 		}
 		xfree(expanded);
 		free_vector(&v);
 	}
 
-	str = NULL;
+	char *str = NULL;
 	vector_push_back(&strings, &str);
 	return strings.data;
 error:

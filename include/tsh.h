@@ -176,6 +176,7 @@ extern pid_t shell_pgid;
 #define TASH_ERR_EXIT    (1 << 3) // exit on error
 #define TASH_UNSET_EXIT  (1 << 4) // exit on unset
 #define TASH_JOB_CONTROL (1 << 5)
+#define TASH_NO_GLOBING  (1 << 6)
 #define arraylen(ar) (sizeof(ar)/sizeof(*ar))
 
 void error(const char *fmt,...);
@@ -227,6 +228,11 @@ char *getvar(const char *name);
 void export_var(const char *name);
 void setup_environ(void);
 void setup_var(void);
+
+// globing
+int glob_match(const char *glob, const char *str);
+char **glob_files(const char *glob);
+void destroy_glob_files(char **files);
 
 void init();
 

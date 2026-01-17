@@ -41,6 +41,19 @@ static inline void vector_push_back(vector_t *vector, const void *element){
 	memcpy(ptr, element, vector->element_size);
 }
 
+static inline void vector_push_multiple_back(vector_t *vector, const void *elements, size_t count){
+	if (vector->count + count > vector->capacity) {
+		while (vector->count + count > vector->capacity) {
+			vector->capacity *= 2;
+		}
+		vector->data = xrealloc(vector->data, vector->capacity * vector->element_size);
+	}
+
+	void *ptr = (char*)vector->data + (vector->count * vector->element_size);
+	memcpy(ptr, elements, vector->element_size * count);
+	vector->count += count;
+}
+
 static inline int vector_pop_back(vector_t *vector, void *element){
 	if (vector->count == 0) return -1;
 		

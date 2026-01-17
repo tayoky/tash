@@ -20,6 +20,9 @@ static int builtin_set(int argc, char **argv) {
 			case 'm':
 				mask |= TASH_JOB_CONTROL;
 				break;
+			case 'f':
+				mask |= TASH_NO_GLOBING;
+				break;
 			default:
 				goto invalid;
 			}
@@ -165,12 +168,12 @@ static int builtin_echo(int argc, char **argv) {
 
 static int builtin_eval(int argc, char **argv) {
 	size_t total = 1;
-	for (size_t i=1; i<argc; i++) {
+	for (int i=1; i<argc; i++) {
 		total += strlen(argv[i]) + 1;
 	}
 	char *buf = xmalloc(total);
 	char *ptr = buf;
-	for (size_t i=1; i<argc; i++) {
+	for (int i=1; i<argc; i++) {
 		strcpy(ptr, argv[i]);
 		ptr += strlen(argv[i]);
 		*(ptr++) = ' ';

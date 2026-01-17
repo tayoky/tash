@@ -321,7 +321,7 @@ static node_t *parse_group(source_t *src) {
 
 	// we need a }
 	token_t *token = next_token(src);
-	if (token->type == T_CLOSE_BRACKET) {
+	if (token->type == T_CLOSE_BRACES) {
 		destroy_token(token);
 	} else {
 		// syntax error
@@ -481,7 +481,7 @@ static node_t *parse_command(source_t *src) {
 	case T_OPEN_PAREN:
 		destroy_token(token);
 		return parse_subshell(src);
-	case T_OPEN_BRACKET:
+	case T_OPEN_BRACES:
 		destroy_token(token);
 		return parse_group(src);
 	case T_WORD: // classic commands
@@ -616,7 +616,7 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 					|| token->type == T_DO
 					|| token->type == T_DONE
 					|| token->type == T_CLOSE_PAREN
-					|| token->type == T_CLOSE_BRACKET) {
+					|| token->type == T_CLOSE_BRACES) {
 					unget_token(src, token);
 					break;
 				}

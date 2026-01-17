@@ -62,9 +62,9 @@ const char *token_name(token_t *token) {
 		return "do";
 	case T_DONE:
 		return "done";
-	case T_OPEN_BRACKET:
+	case T_OPEN_BRACES:
 		return "{";
-	case T_CLOSE_BRACKET:
+	case T_CLOSE_BRACES:
 		return "}";
 	case T_BANG:
 		return "!";
@@ -306,9 +306,9 @@ token_t *next_token(source_t *src) {
 		} else if (!strcmp(str, "esac")) {
 			token->type = T_ESAC;
 		} else if (!strcmp(str, "{")) {
-			token->type = T_OPEN_BRACKET;
+			token->type = T_OPEN_BRACES;
 		} else if (!strcmp(str, "}")) {
-			token->type = T_CLOSE_BRACKET;
+			token->type = T_CLOSE_BRACES;
 		} else if (!strcmp(str, "!")) {
 			token->type = T_BANG;
 		} else {

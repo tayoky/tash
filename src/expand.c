@@ -16,9 +16,9 @@ static int is_special(int c) {
 
 static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	const char *src = *ptr;
-	int has_bracket = 0;
+	int has_braces = 0;
 	if (*src == '{') {
-		has_bracket = 1;
+		has_braces = 1;
 		src++;
 	}
 	const char *start = src;
@@ -51,7 +51,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 			src++;
 		}
 		if (src == start) {
-			if (has_bracket) {
+			if (has_braces) {
 				error("bad substitution");
 				return -1;
 			}
@@ -66,7 +66,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		src--;
 		break;
 	}
-	if (has_bracket) {
+	if (has_braces) {
 		src++;
 		if (*src != '}') {
 			error("bad substitution");
@@ -90,7 +90,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	return 0;
 }
 
-// handle parameter, bracket and tilde expansion
+// handle parameter, braces and tilde expansion
 static int first_expansion(vector_t *dest, const char *src) {
 	int in_quote = 0;
 	// tilde expansion
@@ -153,7 +153,7 @@ static void remove_ctlesc(char *str) {
 	*dest = '\0';
 }
 
-// do word spliting and pathname expansion
+// do a single split on a word and pathname expansion
 static void split_word(vector_t *strings, vector_t *v, int *has_globing) {
 	char *str;
 	vector_push_back(v, (char[]){'\0'});
@@ -178,6 +178,55 @@ no_globing:
 	*has_globing = 0;
 }
 
+// handle world spliting and pathname expansion
+static void word_spliting(word_t *word, vector_t *strings, const char *expanded, int split) {
+	vector_t v = {0};
+	init_vector(&v, sizeof(char));
+	const char *ptr = expanded;
+	int has_split = 0;
+	int has_globing = 0;
+	while (*ptr) {
+		switch (*ptr) {
+		case CTLESC:
+			vector_push_back(&v, ptr);
+			ptr++;
+			vector_push_back(&v, ptr);
+			break;
+		case CTLQUOT:
+			break;
+		case ' ':
+		case '\t':
+		case '\n':
+			// split
+			if (!split) {
+				vector_push_back(&v, ptr);
+				break;
+			}
+			if (v.count == 0) break;
+			split_word(strings, &v, &has_globing);
+			has_split = 1;
+			break;
+		case '*':
+		case '?':
+			has_globing = 1;
+			// fallthrough
+		default:
+			vector_push_back(&v, ptr);
+			break;
+		}
+		ptr++;
+	}
+	if (v.count || !split) {
+		split_word(strings, &v, &has_globing);
+	} else if (!has_split && (word->flags & WORD_HAS_QUOTE)) {
+		// handle stuff like ""
+		char *str = xstrdup("");
+		vector_push_back(strings, &str);
+	}
+	free_vector(&v);
+}
+
+
 char **word_expansion(word_t *words, size_t words_count, int split) {
 	vector_t strings = {0};
 	init_vector(&strings, sizeof(char*));
@@ -187,51 +236,8 @@ char **word_expansion(word_t *words, size_t words_count, int split) {
 		if (!expanded) goto error;
 
 		// now do spliting + pathname expansion
-		vector_t v = {0};
-		init_vector(&v, sizeof(char));
-		char *ptr = expanded;
-		int has_split = 0;
-		int has_globing = 0;
-		while (*ptr) {
-			switch (*ptr) {
-			case CTLESC:
-				vector_push_back(&v, ptr);
-				ptr++;
-				vector_push_back(&v, ptr);
-				break;
-			case CTLQUOT:
-				break;
-			case ' ':
-			case '\t':
-			case '\n':
-				// split
-				if (!split) {
-					vector_push_back(&v, ptr);
-					break;
-				}
-				if (v.count == 0) break;
-				split_word(&strings, &v, &has_globing);
-				has_split = 1;
-				break;
-			case '*':
-			case '?':
-				has_globing = 1;
-				// fallthrough
-			default:
-				vector_push_back(&v, ptr);
-				break;
-			}
-			ptr++;
-		}
-		if (v.count || !split) {
-			split_word(&strings, &v, &has_globing);
-		} else if (!has_split && (words[i].flags & WORD_HAS_QUOTE)) {
-			// handle stuff like ""
-			char *str = xstrdup("");
-			vector_push_back(&strings, &str);
-		}
+		word_spliting(&words[i], &strings, expanded, split);
 		xfree(expanded);
-		free_vector(&v);
 	}
 
 	char *str = NULL;

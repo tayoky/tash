@@ -51,8 +51,8 @@ typedef struct token {
 #define T_UNTIL         266
 #define T_CASE          267
 #define T_ESAC          268
-#define T_OPEN_BRACKET  269
-#define T_CLOSE_BRACKET 270
+#define T_OPEN_BRACES   269
+#define T_CLOSE_BRACES  270
 #define T_BANG          271
 
 typedef struct word {

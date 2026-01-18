@@ -16,6 +16,9 @@ static void report_termination(int status) {
 	} else if(WIFSIGNALED(status)) {
 		exit_status = WTERMSIG(status) + 127;
 		fprintf(stderr, "terminated on %s\n", strsignal(WTERMSIG(status)));
+		if (WTERMSIG(status) == SIGINT && (flags & TASH_JOB_CONTROL)) {
+			sigint_break = 1;
+		}
 	}
 }
 
@@ -23,9 +26,12 @@ void job_control_setup(void) {
 	if (flags & TASH_JOB_CONTROL) {
 		signal(SIGTTOU, SIG_IGN);
 		signal(SIGTTIN, SIG_IGN);
+		signal(SIGINT , SIG_IGN);
 	} else {
 		signal(SIGTTOU, SIG_DFL);
 		signal(SIGTTIN, SIG_DFL);
+		signal(SIGTSTP, SIG_DFL);
+		signal(SIGINT , SIG_DFL);
 	}
 }
 

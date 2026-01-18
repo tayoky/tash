@@ -256,6 +256,7 @@ static builtin_t builtin[] = {
 	CMD("continue",builtin_continue),
 };
 
+// TODO handle SIGINT in builtins
 int try_builtin(int argc,char **argv){
 	for(size_t i=0; i<arraylen(builtin);i++){
 		if(!strcmp(argv[0],builtin[i].name)){

@@ -787,6 +787,7 @@ int interpret(source_t *src) {
 #ifdef DEBUG
 		print_node(node, 0);
 #endif
+		sigint_break = 0;
 		execute(node, 0);
 		free_node(node);
 		xmem_stat();

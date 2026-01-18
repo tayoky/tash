@@ -16,6 +16,7 @@ int exit_status = 0;
 int break_depth = 0;
 int continue_depth = 0;
 int loop_depth = 0;
+int sigint_break = 0;
 
 #define FLAG_NO_FORK 0x01
 #define BREAK_CHECK if (break_depth > 0) {\
@@ -27,6 +28,8 @@ int loop_depth = 0;
 	if (continue_depth > 0) break;\
 	else continue;\
 }
+
+#define SIGINT_CHECK if (sigint_break) break;
 
 static void free_args(char **args) {
 	char **arg = args;
@@ -298,15 +301,16 @@ static void execute_for(node_t *node, int flags) {
 		}
 		BREAK_CHECK
 		CONTINUE_CHECK
+		SIGINT_CHECK
 	}
 	loop_depth--;
 	free_args(strings);
 }
 
-// TODO : stop everything on SIGINT
 void execute(node_t *node, int flags) {
 	if (!node) return;
 	if (break_depth > 0 || continue_depth > 0) return;
+	if (sigint_break) return;
 	vector_t redirs_save = {0};
 	init_vector(&redirs_save, sizeof(saved_fd_t));
 	if (apply_redirs(node->redirs, node->redirs_count, &redirs_save) < 0) return;
@@ -349,9 +353,11 @@ void execute(node_t *node, int flags) {
 			if (exit_status != 0) break;
 			BREAK_CHECK
 			CONTINUE_CHECK
+			SIGINT_CHECK
 			execute(node->loop.body, flags & ~FLAG_NO_FORK);
 			BREAK_CHECK
 			CONTINUE_CHECK
+			SIGINT_CHECK
 		}
 		loop_depth--;
 		break;
@@ -363,9 +369,11 @@ void execute(node_t *node, int flags) {
 			if (exit_status == 0) break;
 			BREAK_CHECK
 			CONTINUE_CHECK
+			SIGINT_CHECK
 			execute(node->loop.body, flags & ~FLAG_NO_FORK);
 			BREAK_CHECK
 			CONTINUE_CHECK
+			SIGINT_CHECK
 		}
 		loop_depth--;
 		break;

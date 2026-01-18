@@ -307,6 +307,14 @@ static void execute_for(node_t *node, int flags) {
 	free_args(strings);
 }
 
+static void execute_case(node_t *node, int flags) {
+	// TODO
+	(void)node;
+	(void)flags;
+	error("TODO : implement case");
+	exit_status = 1;
+}
+
 void execute(node_t *node, int flags) {
 	if (!node) return;
 	if (break_depth > 0 || continue_depth > 0) return;
@@ -392,6 +400,9 @@ void execute(node_t *node, int flags) {
 		}
 		execute(node->single.child, FLAG_NO_FORK);
 		if (!(flags & FLAG_NO_FORK)) exit(exit_status);
+		break;
+	case NODE_CASE:
+		execute_case(node, flags);
 		break;
 	}
 	restore_fds(&redirs_save);

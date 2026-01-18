@@ -30,16 +30,24 @@ const char *token_name(token_t *token) {
 		return "&";
 	case T_PIPE:
 		return "|";
+	case T_SEMI_COLON:
+		return ";";
 	case T_AND:
 		return "&&";
 	case T_OR:
 		return "||";
+	case T_DSEMI:
+		return ";;";
 	case T_INFERIOR:
 		return "<";
 	case T_SUPERIOR:
 		return ">";
 	case T_APPEND:
 		return ">>";
+	case T_DUP_IN:
+		return "<&";
+	case T_DUP_OUT:
+		return ">&";
 	case T_OPEN_PAREN:
 		return "(";
 	case T_CLOSE_PAREN:
@@ -62,6 +70,12 @@ const char *token_name(token_t *token) {
 		return "do";
 	case T_DONE:
 		return "done";
+	case T_IN:
+		return "in";
+	case T_CASE:
+		return "case";
+	case T_ESAC:
+		return "esac";
 	case T_OPEN_BRACES:
 		return "{";
 	case T_CLOSE_BRACES:
@@ -183,10 +197,10 @@ token_t *next_token(source_t *src) {
 		return token;
 	}
 	token_t *token = xmalloc(sizeof(token_t));
-	token->value = NULL;
-	token->type  = T_NULL;
-	token->digit = -1;
-	token->flags = 0;
+	token->value   = NULL;
+	token->type    = T_NULL;
+	token->digit   = -1;
+	token->flags   = 0;
 
 	// skip spaces
 	int c = get_char(src);
@@ -211,9 +225,6 @@ token_t *next_token(source_t *src) {
 	case '\n':
 		token->type = T_NEWLINE;
 		return token;
-	case ';':
-		token->type = T_SEMI_COLON;
-		return token;
 	}
 
 	// operator thay might need peek
@@ -224,6 +235,14 @@ token_t *next_token(source_t *src) {
 		c2 = peek_char(src);
 	}
 	switch (c) {
+	case ';':
+		if (c2 == ';') {
+			token->type = T_DSEMI;
+			get_char(src);
+		} else {
+			token->type = T_SEMI_COLON;
+		}
+		return token;
 	case '&':
 		if (c2 == '&') {
 			token->type = T_AND;
@@ -275,55 +294,49 @@ token_t *next_token(source_t *src) {
 
 	// is it a reserved word ?
 	char *str = buf.data;
-	switch (src->lexer.hint) {
-	case LEXER_COMMAND:
-		if (!strcmp(str, "if")) {
-			token->type = T_IF;
-		} else if (!strcmp(str, "then")) {
-			token->type = T_THEN;
-		} else if (!strcmp(str, "else")) {
-			token->type = T_ELSE;
-		} else if (!strcmp(str, "elif")) {
-			token->type = T_ELIF;
-		} else if (!strcmp(str, "fi")) {
-			token->type = T_FI;
-		} else if (!strcmp(str, "for")) {
-			token->type = T_FOR;
-		} else if (!strcmp(str, "in")) {
-			token->type = T_IN;
-		} else if (!strcmp(str, "do")) {
-			token->type = T_DO;
-		} else if (!strcmp(str, "done")) {
-			token->type = T_DONE;
-		} else if (!strcmp(str, "while")) {
-			token->type = T_WHILE;
-		} else if (!strcmp(str, "until")) {
-			token->type = T_UNTIL;
-		} else if (!strcmp(str, "for")) {
-			token->type = T_FOR;
-		} else if (!strcmp(str, "case")) {
-			token->type = T_CASE;
-		} else if (!strcmp(str, "esac")) {
-			token->type = T_ESAC;
-		} else if (!strcmp(str, "{")) {
-			token->type = T_OPEN_BRACES;
-		} else if (!strcmp(str, "}")) {
-			token->type = T_CLOSE_BRACES;
-		} else if (!strcmp(str, "!")) {
-			token->type = T_BANG;
-		} else {
-			token->type = T_WORD;
-		}
-		break;
-	case LEXER_ARGS:
+	if (!strcmp(str, "if")) {
+		token->type = T_IF;
+	} else if (!strcmp(str, "then")) {
+		token->type = T_THEN;
+	} else if (!strcmp(str, "else")) {
+		token->type = T_ELSE;
+	} else if (!strcmp(str, "elif")) {
+		token->type = T_ELIF;
+	} else if (!strcmp(str, "fi")) {
+		token->type = T_FI;
+	} else if (!strcmp(str, "for")) {
+		token->type = T_FOR;
+	} else if (!strcmp(str, "in")) {
+		token->type = T_IN;
+	} else if (!strcmp(str, "do")) {
+		token->type = T_DO;
+	} else if (!strcmp(str, "done")) {
+		token->type = T_DONE;
+	} else if (!strcmp(str, "while")) {
+		token->type = T_WHILE;
+	} else if (!strcmp(str, "until")) {
+		token->type = T_UNTIL;
+	} else if (!strcmp(str, "for")) {
+		token->type = T_FOR;
+	} else if (!strcmp(str, "case")) {
+		token->type = T_CASE;
+	} else if (!strcmp(str, "esac")) {
+		token->type = T_ESAC;
+	} else if (!strcmp(str, "{")) {
+		token->type = T_OPEN_BRACES;
+	} else if (!strcmp(str, "}")) {
+		token->type = T_CLOSE_BRACES;
+	} else if (!strcmp(str, "!")) {
+		token->type = T_BANG;
+	} else {
 		token->type = T_WORD;
-		break;
-	case LEXER_FILE:
-		token->type = T_WORD;
-		break;
 	}
 
 	return token;
+}
+
+int token_is_word(token_t *token) {
+	return token->type >= T_KEYWORD || token->type == T_WORD;
 }
 
 void destroy_token(token_t *token) {

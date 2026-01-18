@@ -23,6 +23,7 @@ typedef struct token {
 #define T_APPEND         5
 #define T_DUP_OUT        6
 #define T_DUP_IN         7
+#define T_DSEMI          8
 #define T_PIPE          '|'
 #define T_BG            '&'
 #define T_SPACE         ' '
@@ -37,7 +38,7 @@ typedef struct token {
 #define T_HASH          '#'
 #define T_DOLLAR        '$'
 #define T_BACKSLASH     '\\'
-#define T_QUESTION_MARK '?'
+#define T_KEYWORD       255
 #define T_IF            256
 #define T_THEN          257
 #define T_ELSE          258
@@ -79,6 +80,14 @@ typedef struct assign {
 	char *var;
 } assign_t;
 
+struct node;
+
+typedef struct _case {
+	struct node *body;
+	word_t *patterns;
+	size_t patterns_count;
+} case_t;
+
 typedef struct node {
 	int type;
 	redir_t *redirs;
@@ -112,6 +121,11 @@ typedef struct node {
 			size_t words_count;
 			word_t var_name;
 		} for_loop;
+		struct {
+			word_t word;
+			case_t *cases;
+			size_t cases_count;
+		} _case;
 	};
 } node_t;
 
@@ -129,16 +143,11 @@ typedef struct node {
 #define NODE_SUBSHELL 11
 #define NODE_GROUP    12
 #define NODE_FOR      13
+#define NODE_CASE     14
 
 typedef struct lexer {
 	token_t *putback;
-	int hint;
 } lexer_t;
-
-#define LEXER_COMMAND   1
-#define LEXER_ARGS      2
-#define LEXER_FILE      3
-#define LEXER_EXPECT_IN 1
 
 typedef struct source {
 	void *data;
@@ -189,6 +198,7 @@ token_t *next_token(source_t *src);
 void unget_token(source_t *src, token_t *token);
 void destroy_token(token_t *token);
 const char *token_name(token_t *);
+int token_is_word(token_t *token);
 
 int try_builtin(int argc, char **argv);
 
@@ -198,6 +208,7 @@ int eval(const char *str);
 int eval_script(const char *pathname);
 void execute(node_t *node, int flags);
 char **word_expansion(word_t *words, size_t words_count, int split);
+void free_node(node_t *node);
 
 // jobs control
 

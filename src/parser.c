@@ -309,6 +309,7 @@ static node_t *parse_case(source_t *src) {
 	destroy_token(word);
 	return node;
 error:
+	free_cases(cases.data, cases.count);
 	free_words(patterns.data, patterns.count);
 	destroy_token(word);
 	parser_error = 1;

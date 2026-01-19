@@ -13,3 +13,4 @@ Soems of the features tash currently has :
 - tilde expansion
 - variables (assignements, temporary environement variables and expansion)
 - redirections (only on commands)
+- case statements

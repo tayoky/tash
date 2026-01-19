@@ -717,6 +717,7 @@ static node_t *parse_line(source_t *src) {
 	return NULL;
 }
 
+#ifdef DEBUG
 static void print_depth(int depth) {
 	for (int i=0; i<depth; i++) {
 		fprintf(stderr, "  ");
@@ -843,8 +844,7 @@ static void print_node(node_t *node, int depth) {
 		break;
 	}
 }
-
-
+#endif
 
 int interpret(source_t *src) {
 	for (;;) {

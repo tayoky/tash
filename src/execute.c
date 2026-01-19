@@ -311,8 +311,30 @@ static void execute_case(node_t *node, int flags) {
 	// TODO
 	(void)node;
 	(void)flags;
-	error("TODO : implement case");
-	exit_status = 1;
+	char **word = word_expansion(&node->_case.word, 1, 0);
+	if (!word) {
+		// expansion error
+		exit_status = 1;
+		return;
+	}
+
+	exit_status = 0;
+	for (size_t i=0; i<node->_case.cases_count; i++) {
+		int matched = 0;
+		case_t *_case = &node->_case.cases[i];
+		for (size_t j=0; j<_case->patterns_count; j++) {
+			// TODO : do some expansion
+			if (glob_match(_case->patterns[j].text, *word)) {
+				matched = 1;
+				break;
+			}
+		}
+		if (matched) {
+			execute(_case->body, flags);
+			break;
+		}
+	}
+	free_args(word);
 }
 
 void execute(node_t *node, int flags) {

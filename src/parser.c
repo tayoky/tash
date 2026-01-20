@@ -665,7 +665,7 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 			unget_token(src, token);
 			break;
 		}
-		if (token->type == T_NEWLINE && !multi_lines) {
+		if (!multi_lines) {
 			destroy_token(token);
 			break;
 		}

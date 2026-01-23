@@ -319,9 +319,10 @@ error:
 // FIXME : rewrite this to avoid recursivity
 static node_t *parse_if(source_t *src) {
 	// we already parsed the if
-	node_t *condition = must_parse_list(src, 1);
-	node_t *body      = NULL;
-	node_t *else_body = NULL;
+	node_t *condition   = must_parse_list(src, 1);
+	node_t *body        = NULL;
+	node_t *else_body   = NULL;
+	node_t *lowest_node = NULL;
 	if (!condition) return NULL;
 
 	// we need a then
@@ -330,34 +331,54 @@ static node_t *parse_if(source_t *src) {
 	body = must_parse_list(src, 1);
 	if (!body) goto error;
 
-	// we need a fi or elif or else
+	// parse optionals elif
 	token_t *token = next_token(src);
-	if (token->type == T_FI) {
-		destroy_token(token);
-	} else if (token->type == T_ELIF) {
-		destroy_token(token);
-		else_body = parse_if(src);
-		if (!else_body) goto error;
-	} else if (token->type == T_ELSE) {
-		destroy_token(token);
-		else_body = must_parse_list(src, 1);
-		if (!else_body) goto error;
 
-		// need a fi
-		token = next_token(src);
-		if (token->type == T_FI) {
-			destroy_token(token);
-		} else {
-			syntax_error("unexpected token '%s' (expected 'fi')", token_name(token));
-			destroy_token(token);
+	while (token->type == T_ELIF) {
+		destroy_token(token);
+
+		node_t *elif_condition = must_parse_list(src, 1);
+		if (!elif_condition) goto error;
+
+		if (expect_token(src, T_THEN) < 0) {
+			free_node(elif_condition);
 			goto error;
 		}
-	} else {
-		// syntax error
-		syntax_error("unexpected token '%s'", token_name(token));
-		destroy_token(token);
-		goto error;
+
+		node_t *elif_body = must_parse_list(src, 1);
+		if (!elif_body) {
+			free_node(elif_condition);
+			goto error;
+		}
+
+		node_t *elif = new_node(NODE_IF);
+		elif->_if.condition = elif_condition;
+		elif->_if.body      = elif_body;
+		if (lowest_node) {
+			lowest_node->_if.else_body = elif;
+		} else {
+			else_body = elif;
+		}
+		lowest_node = elif;
+		token = next_token(src);
 	}
+
+	// parse optional else
+	if (token->type == T_ELSE) {
+		destroy_token(token);
+		node_t *list = must_parse_list(src, 1);
+		if (!list) goto error;
+		if (lowest_node) {
+			lowest_node->_if.else_body = list;
+		} else {
+			else_body = list;
+		}
+	} else {
+		unget_token(src, token);
+	}
+
+	// we need a fi
+	if (expect_token(src, T_FI) < 0) goto error;	
 
 	node_t *node = new_node(NODE_IF);
 	node->_if.condition = condition;
@@ -672,8 +693,8 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 		node_t *child = parse_logic_list(src);
 		if (!child) {
 			destroy_token(token);
-			token = next_token(src);
 			if (!parser_error) {
+				token = next_token(src);
 				if (token->type == T_THEN || token->type == T_ELIF
 					|| token->type == T_ELSE
 					|| token->type == T_FI

@@ -95,16 +95,15 @@ static int is_delimiter(int c) {
 
 #define APPEND(c) vector_push_back(buf, (char[]){c})
 
-static void handle_subshell(source_t *src, vector_t *buf, int *flags, int c, int is_sub) {
-	if (is_sub > 1024) {
-		// wow the user is crazy
-		return;
-	}
-
+static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int end) {
 	int quote = 0;
 	for (;;) {
-		if (quote == 0 && is_delimiter(c) && !is_sub) {
+		if (quote == 0 && is_delimiter(c) && !end) {
 			unget_char(src, c);
+			return;
+		}
+		if (c == end) {
+			APPEND(c);
 			return;
 		}
 		switch (c) {
@@ -154,15 +153,24 @@ static void handle_subshell(source_t *src, vector_t *buf, int *flags, int c, int
 				break;
 			}
 			APPEND(c);
-			if (peek_char(src) == '(') {
+			int next_c = peek_char(src);
+			if (next_c == '(') {
 				c = get_char(src);
 				if (c == EOF) return;
-				handle_subshell(src, buf, flags, c, is_sub + 1);
+				get_word_helper(src, buf, flags, c, ')');
+				break;
 			}
-			break;
-		case ')':
-			APPEND(c);
-			if (quote == 0) return;
+			if (next_c == '{') {
+				c = get_char(src);
+				if (c == EOF) return;
+				get_word_helper(src, buf, flags, c, '}');
+				break;
+			}
+			// prevent the '*' from being quoted in "$*"
+			if (next_c == '*') {
+				APPEND(get_char(src));
+				break;
+			}
 			break;
 		case '*':
 		case ' ':
@@ -288,7 +296,7 @@ token_t *next_token(source_t *src) {
 	// we have a word
 	vector_t buf = {0};
 	init_vector(&buf, sizeof(char));
-	handle_subshell(src, &buf, &token->flags, c, 0);
+	get_word_helper(src, &buf, &token->flags, c, 0);
 	vector_push_back(&buf, (char[]){'\0'});
 	token->value = buf.data;
 

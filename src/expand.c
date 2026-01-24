@@ -24,6 +24,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	const char *start = src;
 	const char *value = NULL;
 	char buf[32];
+	int must_free = 0;
 	switch (*src) {
 	case '$':
 		sprintf(buf, "%ld", (long)shell_pid);
@@ -37,7 +38,21 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		sprintf(buf, "%d", _argc - 1);
 		value = buf;
 		break;
-	// TODO : $@ and $*
+	case '@':
+	case '*':;
+		// TODO : do the "$@" special case
+		vector_t args = {0};
+		init_vector(&args, sizeof(char));
+		for (int i=1; i<_argc; i++) {
+			vector_push_multiple_back(&args, _argv[i], strlen(_argv[i]));
+			if (i != _argc - 1) {
+				vector_push_back(&args, (char[]){' '});
+			}
+		}
+		vector_push_back(&args, (char[]){'\0'});
+		value = args.data;
+		must_free = 1;
+		break;
 	case '0':
 	case '1': case '2': case '3':
 	case '4': case '5': case '6':
@@ -82,10 +97,12 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		}
 		return 0;
 	}
-	while (*value) {
-		if ((in_quote && is_special(*value)) || is_dangerous(*value)) APPEND(CTLESC);
-		vector_push_back(dest, value);
-		value++;
+	for (const char *ptr=value; *ptr; ptr++) {
+		if ((in_quote && is_special(*ptr)) || is_dangerous(*ptr)) APPEND(CTLESC);
+		vector_push_back(dest, ptr);
+	}
+	if (must_free) {
+		xfree((char*)value);
 	}
 	return 0;
 }

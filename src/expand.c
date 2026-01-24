@@ -14,6 +14,15 @@ static int is_special(int c) {
 
 #define APPEND(c) vector_push_back(dest, (char[]){c})
 
+// append a string safely, quoting char if necessary
+static void append_safe(vector_t *dest, const char *str, int in_quote) {
+	while (*str) {
+		if ((in_quote && is_special(*str)) || is_dangerous(*str)) APPEND(CTLESC);
+		vector_push_back(dest, str);
+		str++;
+	}
+}
+
 static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	const char *src = *ptr;
 	int has_braces = 0;
@@ -24,7 +33,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	const char *start = src;
 	const char *value = NULL;
 	char buf[32];
-	int must_free = 0;
+	int already_handled = 0;
 	switch (*src) {
 	case '$':
 		sprintf(buf, "%ld", (long)shell_pid);
@@ -39,19 +48,26 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		value = buf;
 		break;
 	case '@':
-	case '*':;
-		// TODO : do the "$@" special case
-		vector_t args = {0};
-		init_vector(&args, sizeof(char));
 		for (int i=1; i<_argc; i++) {
-			vector_push_multiple_back(&args, _argv[i], strlen(_argv[i]));
+			append_safe(dest, _argv[i], in_quote);
 			if (i != _argc - 1) {
-				vector_push_back(&args, (char[]){' '});
+				// do not CTLESC it
+				// so it get cut even in quote (which is intended behaviour)
+				// it's a special case of posix
+				APPEND(' ');
 			}
 		}
-		vector_push_back(&args, (char[]){'\0'});
-		value = args.data;
-		must_free = 1;
+		already_handled = 1;
+		break;
+	case '*':
+		for (int i=1; i<_argc; i++) {
+			append_safe(dest, _argv[i], in_quote);
+			if (i != _argc - 1) {
+				if (in_quote) APPEND(CTLESC);
+				APPEND(' ');
+			}
+		}
+		already_handled = 1;
 		break;
 	case '0':
 	case '1': case '2': case '3':
@@ -89,6 +105,9 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		}
 	}
 	*ptr = src;
+	if (already_handled) {
+		return 0;
+	}
 	if (!value) {
 		// var is unset
 		if (flags & TASH_UNSET_EXIT) {
@@ -97,13 +116,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		}
 		return 0;
 	}
-	for (const char *ptr=value; *ptr; ptr++) {
-		if ((in_quote && is_special(*ptr)) || is_dangerous(*ptr)) APPEND(CTLESC);
-		vector_push_back(dest, ptr);
-	}
-	if (must_free) {
-		xfree((char*)value);
-	}
+	append_safe(dest, value, in_quote);
 	return 0;
 }
 

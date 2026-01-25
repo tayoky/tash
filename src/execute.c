@@ -338,17 +338,17 @@ static void execute_case(node_t *node, int flags) {
 	free_args(word);
 }
 
-static void execute_async(node_t *node, int flags) {
-	if (!(flags & FLAG_NO_FORK)) {
-		group_t group;
-		job_init_group(&group);
-		if (job_fork_async(&group)) {
-			last_background = group.pid;
-			job_free_group(&group);
-			return;
-		}
+static void execute_async(node_t *node, int cmd_flags) {
+	(void)cmd_flags;
+	group_t group;
+	job_init_group(&group);
+	if (job_fork_async(&group)) {
+		last_background = group.pid;
 		job_free_group(&group);
+		return;
 	}
+	job_free_group(&group);
+
 	if (!(flags & TASH_JOB_CONTROL)) {
 		// redirect /dev/null as input
 		int null = open("/dev/null", O_RDONLY);
@@ -358,7 +358,7 @@ static void execute_async(node_t *node, int flags) {
 		}
 	}
 	execute(node->single.child, FLAG_NO_FORK);
-	if (!(flags & FLAG_NO_FORK)) exit(exit_status);
+	exit(exit_status);
 }
 
 void execute(node_t *node, int flags) {

@@ -349,6 +349,14 @@ static void execute_async(node_t *node, int flags) {
 		}
 		job_free_group(&group);
 	}
+	if (!(flags & TASH_JOB_CONTROL)) {
+		// redirect /dev/null as input
+		int null = open("/dev/null", O_RDONLY);
+		if (null >= 0 && null != STDIN_FILENO) {
+			dup2(null, STDIN_FILENO);
+			close(null);
+		}
+	}
 	execute(node->single.child, FLAG_NO_FORK);
 	if (!(flags & FLAG_NO_FORK)) exit(exit_status);
 }

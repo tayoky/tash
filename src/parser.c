@@ -698,13 +698,12 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 				node = bg;
 			}
 		}
+		destroy_token(token);
 		if (!multi_lines) {
-			destroy_token(token);
 			break;
 		}
 		node_t *child = parse_logic_list(src);
 		if (!child) {
-			destroy_token(token);
 			if (!parser_error) {
 				token = next_token(src);
 				if (token->type == T_THEN || token->type == T_ELIF
@@ -731,7 +730,6 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 		sep_node->binary.left  = node;
 		sep_node->binary.right = child;
 		node = sep_node;
-		destroy_token(token);
 	}
 	return node;
 }

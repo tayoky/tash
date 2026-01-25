@@ -61,13 +61,13 @@ void free_node(node_t *node) {
 	case NODE_NEGATE:
 	case NODE_SUBSHELL:
 	case NODE_GROUP:
+	case NODE_BG:
 		free_node(node->single.child);
 		break;
 	case NODE_PIPE:
 	case NODE_OR:
 	case NODE_AND:
 	case NODE_SEP:
-	case NODE_BG:
 		free_node(node->binary.left);
 		free_node(node->binary.right);
 		break;
@@ -682,9 +682,21 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 
 	for (;;) {
 		token_t *token = next_token(src);
-		if (token->type != T_NEWLINE && token->type != T_SEMI_COLON) {
+		if (token->type != T_NEWLINE && token->type != T_SEMI_COLON && token->type != T_BG) {
 			unget_token(src, token);
 			break;
+		}
+
+		if (token->type == T_BG) {
+			// insert a NODE_BG as child of the NODE_SEP
+			node_t *bg = new_node(NODE_BG);
+			if (node->type == NODE_SEP) {
+				bg->single.child = node->binary.right;
+				node->binary.right = bg;
+			} else {
+				bg->single.child = node;
+				node = bg;
+			}
 		}
 		if (!multi_lines) {
 			destroy_token(token);
@@ -715,7 +727,7 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 			return NULL;
 		}
 
-		node_t *sep_node = new_node(token->type == T_BG ? NODE_BG : NODE_SEP);
+		node_t *sep_node = new_node(NODE_SEP);
 		sep_node->binary.left  = node;
 		sep_node->binary.right = child;
 		node = sep_node;
@@ -861,8 +873,7 @@ static void print_node(node_t *node, int depth) {
 		break;
 	case NODE_BG:
 		fputs("bg\n", stderr);
-		print_node(node->binary.left , depth + 1);
-		print_node(node->binary.right, depth + 1);
+		print_node(node->single.child , depth + 1);
 		break;
 	}
 }

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "tsh.h"
+#include <tsh.h>
 
 static int builtin_set(int argc, char **argv) {
 	for (int i=1; i<argc; i++) {
@@ -186,11 +186,15 @@ static int builtin_eval(int argc, char **argv) {
 	return exit_status;
 }
 
-static int builtin_true(void) {
+static int builtin_true(int argc, char **argv) {
+	(void)argc;
+	(void)argv;
 	return 0;
 }
 
-static int builtin_false(void) {
+static int builtin_false(int argc, char **argv) {
+	(void)argc;
+	(void)argv;
 	return 1;
 }
 
@@ -240,6 +244,37 @@ static int builtin_continue(int argc, char **argv) {
 	}
 }
 
+static int builtin_wait(int argc, char **argv) {
+	exit_status = 0;
+	if (argc < 2) {
+		for (;;) {
+			if (job_wait_pid(-1) < 0) {
+				return 0;
+			}
+		}
+	} else {
+		for (int i=1; i<argc; i++) {
+			char *end;
+			pid_t pid = (pid_t)strtol(argv[i], &end, 10);
+			if (end == argv[i] || *end) {
+				error("wait : invalid pid '%s'", argv[i]);
+				exit_status = 1;
+				continue;
+			}
+			if (job_wait_pid(pid) < 0) {
+				exit_status = 127;
+				if (errno == ECHILD) {
+					error("wait : %ld is not a child process", (long)pid);
+				} else {
+					perror(argv[i]);
+				}
+				continue;
+			}
+		}
+		return exit_status;
+	}
+}
+
 #define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
 static builtin_t builtin[] = {
 	CMD("cd"      ,builtin_cd),
@@ -254,6 +289,7 @@ static builtin_t builtin[] = {
 	CMD("false"   ,builtin_false),
 	CMD("break"   ,builtin_break),
 	CMD("continue",builtin_continue),
+	CMD("wait"    ,builtin_wait),
 };
 
 // TODO handle SIGINT in builtins

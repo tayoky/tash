@@ -39,6 +39,10 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		sprintf(buf, "%ld", (long)shell_pid);
 		value = buf;
 		break;
+	case '!':
+		sprintf(buf, "%ld", (long)last_background);
+		value = buf;
+		break;
 	case '?':
 		sprintf(buf, "%d", exit_status);
 		value = buf;

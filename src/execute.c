@@ -12,6 +12,7 @@ typedef struct saved_fd {
 	int flags;
 } saved_fd_t;
 
+pid_t last_background = 0;
 int exit_status = 0;
 int break_depth = 0;
 int continue_depth = 0;
@@ -226,7 +227,7 @@ static void execute_cmd(node_t *node, int flags) {
 	execvp(args[0], args);
 	perror(args[0]);
 	free_args(args);
-	if (!(flags & FLAG_NO_FORK)) exit(1);
+	if (!(flags & FLAG_NO_FORK)) exit(127);
 	return;
 }
 
@@ -337,6 +338,21 @@ static void execute_case(node_t *node, int flags) {
 	free_args(word);
 }
 
+static void execute_async(node_t *node, int flags) {
+	if (!(flags & FLAG_NO_FORK)) {
+		group_t group;
+		job_init_group(&group);
+		if (job_fork_async(&group)) {
+			last_background = group.pid;
+			job_free_group(&group);
+			return;
+		}
+		job_free_group(&group);
+	}
+	execute(node->single.child, FLAG_NO_FORK);
+	if (!(flags & FLAG_NO_FORK)) exit(exit_status);
+}
+
 void execute(node_t *node, int flags) {
 	if (!node) return;
 	if (break_depth > 0 || continue_depth > 0) return;
@@ -422,6 +438,9 @@ void execute(node_t *node, int flags) {
 		}
 		execute(node->single.child, FLAG_NO_FORK);
 		if (!(flags & FLAG_NO_FORK)) exit(exit_status);
+		break;
+	case NODE_BG:
+		execute_async(node, flags);
 		break;
 	case NODE_CASE:
 		execute_case(node, flags);

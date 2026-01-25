@@ -173,6 +173,7 @@ extern int _argc;
 extern char **_argv;
 extern int flags;
 extern int prompt;
+extern pid_t last_background;
 extern int exit_status;
 extern int break_depth;
 extern int continue_depth;
@@ -219,14 +220,26 @@ void free_node(node_t *node);
  */
 pid_t job_fork(group_t *group);
 
+pid_t job_fork_async(group_t *group);
+
 /**
  * @brief wait for a job/group to terminate
  */
 int job_wait(group_t *group);
+
+/**
+ * @brief wait for a process to terminate
+ */
+int job_wait_pid(pid_t pid);
+
+/**
+ * @brief create a job with a single child and wait for it
+ */
 int job_single(void);
 void job_init_group(group_t *group);
 void job_free_group(group_t *group);
 void job_control_setup(void);
+void job_report_termination(int status, int bg);
 
 // prompt management
 void show_ps1(void);

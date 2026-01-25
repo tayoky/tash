@@ -10,13 +10,14 @@
 // process manipulation
 
 
-static void report_termination(int status) {
+void job_report_termination(int status, int bg) {
 	if (WIFEXITED(status)) {
 		exit_status = WEXITSTATUS(status);
 	} else if(WIFSIGNALED(status)) {
-		exit_status = WTERMSIG(status) + 127;
-		fprintf(stderr, "terminated on %s\n", strsignal(WTERMSIG(status)));
-		if (WTERMSIG(status) == SIGINT && (flags & TASH_JOB_CONTROL)) {
+		exit_status = WTERMSIG(status) + 128;
+		// only interactive shell print messages
+		if ((flags & TASH_INTERACTIVE) && !bg && (flags & TASH_JOB_CONTROL)) fprintf(stderr, "terminated on %s\n", strsignal(WTERMSIG(status)));
+		if (!bg && WTERMSIG(status) == SIGINT && (flags & TASH_JOB_CONTROL)) {
 			sigint_break = 1;
 		}
 	}
@@ -45,14 +46,15 @@ void job_free_group(group_t *group) {
 	free_vector(&group->childs);
 }
 
-pid_t job_fork(group_t *group) {
+pid_t job_fork_async(group_t *group) {
 	// flush to avoid double flusing
 	fflush(stdout);
 	pid_t child = fork();
 	if (!child) {
 		// do not make a new group if already in a new one
 		if (flags & TASH_JOB_CONTROL) setpgid(0, group->pid);
-		// disable job control to avoid chaos
+		// disable job control and interactive to avoid chaos
+		flags &= ~TASH_INTERACTIVE;
 		if (flags & TASH_JOB_CONTROL) {
 			flags &= ~TASH_JOB_CONTROL;
 			job_control_setup();
@@ -65,19 +67,38 @@ pid_t job_fork(group_t *group) {
 	}
 	if (!group->pid) {
 		group->pid = child;
-		if (flags & TASH_JOB_CONTROL) {
-			tcsetpgrp(STDIN_FILENO, group->pid);
-		}
 	}
 	vector_push_back(&group->childs, &child);
 	return child;
 }
 
+pid_t job_fork(group_t *group) {
+	pid_t child = job_fork_async(group);
+	if (child <= 0) return child;
+		
+	if (group->pid == child) {
+		// it's the group leader
+		// se we need to setup foreground group
+		if (flags & TASH_JOB_CONTROL) {
+			tcsetpgrp(STDIN_FILENO, group->pid);
+		}
+	}
+	return child;
+}
+
+int job_wait_pid(pid_t pid) {
+	int status;
+	pid_t child = waitpid(pid, &status, 0);
+	if (child < 0) return child;
+	job_report_termination(status, 0);
+	return 0;
+}
+
 int job_wait(group_t *group) {
 	int status;
-	for (size_t i=0; i<group->childs.count; i++) {
+	for (size_t i=0; i<group->childs.count; i++) {;
 		waitpid(*(pid_t*)vector_at(&group->childs, i), &status, 0);
-		report_termination(status);
+		job_report_termination(status, 0);
 	}
 	if (flags & TASH_JOB_CONTROL) {
 		tcsetpgrp(STDIN_FILENO, getpgid(0));

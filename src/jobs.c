@@ -48,7 +48,7 @@ void job_free_group(group_t *group) {
 
 pid_t job_fork_async(group_t *group) {
 	// flush to avoid double flusing
-	fflush(stdout);
+	fflush(NULL);
 	pid_t child = fork();
 	if (!child) {
 		// do not make a new group if already in a new one

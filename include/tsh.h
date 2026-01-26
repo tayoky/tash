@@ -152,7 +152,7 @@ typedef struct lexer {
 typedef struct source {
 	void *data;
 	int (*get_char)(void *);
-	int (*unget_char)(int,void *);
+	int unget;
 	lexer_t lexer;
 } source_t;
 
@@ -244,7 +244,6 @@ void job_report_termination(int status, int bg);
 // prompt management
 void show_ps1(void);
 void show_ps2(void);
-void prompt_unget(int c);
 int prompt_getc(void);
 
 // variable management
@@ -274,10 +273,5 @@ extern struct var *var;
 // cute custom perror
 #undef perror
 #define perror(str) error("%s : %s",str,strerror(errno))
-
-#define SRC_FILE(file) {.data = file,\
-	.get_char  = (void *)fgetc,\
-	.unget_char = (void *)ungetc,\
-}
 
 #endif

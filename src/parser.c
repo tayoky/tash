@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <vector.h>
+#include <fcntl.h>
 #include <ctype.h>
 #include <tsh.h>
 
@@ -923,13 +924,6 @@ static int buf_getc(void *data) {
 	return buf->data[buf->ptr++];
 }
 
-static int buf_ungetc(int c, void *data) {
-	buf_t *buf = data;
-	if (c ==  EOF) return EOF;
-	buf->ptr--;
-	return c;
-}
-
 int eval(const char *str) {
 	buf_t buf = {
 		.size = strlen(str),
@@ -937,21 +931,36 @@ int eval(const char *str) {
 	};
 	source_t src = {
 		.get_char   = buf_getc,
-		.unget_char = buf_ungetc,
 		.data       = &buf,
+		.unget = EOF,
 	};
 	return interpret(&src);
 }
 
+static int script_getc(void *data) {
+	int fd = (int)(uintptr_t)data;
+	char c;
+	return read(fd, &c, sizeof(c)) >= 1 ? c : EOF;
+}
+
 int eval_script(const char *pathname) {
-	FILE *script = fopen(pathname, "re");
-	if (!script) {
-		perror(pathname);
-		exit_status = 1;
-		return exit_status;
+	int fd = 0;
+	if (!strcmp(pathname, "-")) {
+		fd = STDIN_FILENO;
+	} else {
+		fd = open(pathname, O_RDONLY | O_CLOEXEC);
+		if (fd < 0) {
+			perror(pathname);
+			exit_status = 1;
+			return exit_status;
+		}
 	}
-	source_t src = SRC_FILE(script);
+	source_t src = {
+		.data = (void*)(uintptr_t)fd,
+		.get_char = script_getc,
+		.unget = EOF,
+	};
 	interpret(&src);	
-	fclose(script);
+	if (fd != STDIN_FILENO) close(fd);
 	return exit_status;
 }

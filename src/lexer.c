@@ -4,18 +4,24 @@
 #include <vector.h>
 #include <tsh.h>
 
-int peek_char(source_t *src) {
-	int c = src->get_char(src->data);
-	src->unget_char(c, src->data);
-	return c;
-}
-
 int get_char(source_t *src) {
+	if (src->unget != EOF) {
+		int c = src->unget;
+		src->unget = EOF;
+		return c;
+	}
 	return src->get_char(src->data);
 }
 
 int unget_char(source_t *src, int c) {
-	return src->unget_char(c, src->data);
+	if (c != EOF) src->unget = c;
+	return c;
+}
+
+int peek_char(source_t *src) {
+	int c = get_char(src);
+	unget_char(src, c);
+	return c;
 }
 
 const char *token_name(token_t *token) {

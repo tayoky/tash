@@ -383,7 +383,3 @@ finish:
 	return prompt_getc();
 
 }
-
-void prompt_unget(int c){
-	if(c != EOF)prompt_index--;
-}

@@ -88,11 +88,14 @@ int main(int argc,char **argv){
 			flags |= TASH_INTERACTIVE;
 		}
 		init();
-		source_t src = SRC_FILE(stdin);
 		if(flags & TASH_INTERACTIVE){
-			src.get_char = (void*)prompt_getc;
-			src.unget_char = (void*)prompt_unget;
+			source_t src = {
+				.get_char = (void*)prompt_getc,
+				.unget = EOF,
+			};
+			return interpret(&src);
+		} else {
+			return eval_script("-");
 		}
-		return interpret(&src);
 	}
 }

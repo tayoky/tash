@@ -242,8 +242,6 @@ void job_control_setup(void);
 void job_report_termination(int status, int bg);
 
 // prompt management
-void show_ps1(void);
-void show_ps2(void);
 int prompt_getc(void);
 
 // variable management

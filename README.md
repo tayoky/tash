@@ -14,3 +14,4 @@ Soems of the features tash currently has :
 - variables (assignements, temporary environement variables and expansion)
 - redirections (only on commands)
 - case statements
+- async commands with & (without job control)

@@ -26,9 +26,14 @@ static void append_safe(vector_t *dest, const char *str, int in_quote) {
 static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	const char *src = *ptr;
 	int has_braces = 0;
+	int first_op = 0;
 	if (*src == '{') {
 		has_braces = 1;
 		src++;
+		if (*src == '#') {
+			first_op = '#';
+			src++;
+		}
 	}
 	const char *start = src;
 	const char *value = NULL;
@@ -52,6 +57,14 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		value = buf;
 		break;
 	case '@':
+		if (first_op == '#') {
+			// we want to print len
+			sprintf(buf, "%d", _argc - 1);
+			append_safe(dest, buf, in_quote);
+			already_handled = 1;
+			break;
+		}
+
 		for (int i=1; i<_argc; i++) {
 			append_safe(dest, _argv[i], in_quote);
 			if (i != _argc - 1) {
@@ -119,6 +132,10 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 			return -1;
 		}
 		return 0;
+	}
+	if (first_op == '#') {
+		sprintf(buf, "%zu", strlen(value));
+		value = buf;
 	}
 	append_safe(dest, value, in_quote);
 	return 0;

@@ -101,6 +101,10 @@ static int builtin_cd(int argc, char **argv) {
 			perror(argv[1]);
 			return 1;
 		}
+		char buf[256];
+		if (getcwd(buf, sizeof(buf))) {
+			putvar("PWD", buf);
+		}
 		return 0;
 	} else {
 		const char *home = getvar("HOME");
@@ -112,6 +116,7 @@ static int builtin_cd(int argc, char **argv) {
 			perror(home);
 			return 1;
 		}
+		putvar("PWD", home);
 		return 0;
 	}
 }

@@ -72,4 +72,11 @@ void setup_var(void){
 		export_var(name);
 		xfree(name);
 	}
+
+	// setup PWD
+	char buf[256];
+	if (getcwd(buf, sizeof(buf))) {
+		putvar("PWD", buf);
+	}
+	export_var("PWD");
 }

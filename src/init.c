@@ -30,6 +30,7 @@ void init(void){
 	shell_pid = getpid();
 	shell_pgid = getpgid(0);
 	setup_var();
+	setup_funcs();
 
 	job_control_setup();
 

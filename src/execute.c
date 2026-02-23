@@ -215,6 +215,15 @@ static void execute_cmd(node_t *node, int flags) {
 		free_args(args);
 		return;
 	}
+
+	// now try function
+	func_t *func = get_func(args[0]);
+	if (func) {
+		// TODO : arg support
+		execute(func->node, flags);
+		free_args(args);
+		return;
+	}
 	if (!(flags & FLAG_NO_FORK)) {
 		if (job_single()) {
 			free_args(args);
@@ -452,6 +461,12 @@ void execute(node_t *node, int flags) {
 		break;
 	case NODE_CASE:
 		execute_case(node, flags);
+		break;
+	case NODE_FUNC:;
+		// steal the node
+		node_t *body = node->func.body;
+		node->func.body = NULL;
+		register_func(node->func.name, body);
 		break;
 	}
 	restore_fds(&redirs_save);

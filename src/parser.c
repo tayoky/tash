@@ -94,7 +94,7 @@ void free_node(node_t *node) {
 		break;
 	case NODE_FUNC:
 		free_node(node->func.body);
-		free(node->func.name);
+		xfree(node->func.name);
 		break;
 	}
 	xfree(node);
@@ -587,7 +587,7 @@ static node_t *parse_func(source_t *src, token_t *name) {
 
 	node_t *func = new_node(NODE_FUNC);
 	func->func.body = body;
-	func->func.name = strdup(name->value);
+	func->func.name = xstrdup(name->value);
 	destroy_token(name);
 	return func;
 error:

@@ -166,6 +166,11 @@ typedef struct builtin {
 	char *name;
 } builtin_t;
 
+typedef struct func {
+	char *name;
+	node_t *node;
+} func_t;
+
 /*
  * @brief represent a process group/job
  */
@@ -260,6 +265,12 @@ void setup_var(void);
 int glob_match(const char *glob, const char *str);
 char **glob_files(const char *glob);
 void destroy_glob_files(char **files);
+
+// funcs management
+func_t *get_func(const char *name);
+void register_func(const char *name, node_t *node);
+void unregister_func(const char *name);
+void setup_funcs(void);
 
 void init();
 

@@ -194,6 +194,33 @@ static int apply_assignements(assign_t *assigns, size_t count, int export) {
 	return 0;
 }
 
+static void save_args(int *argc, char ***argv) {
+	*argc = _argc;
+	*argv = _argv;
+}
+
+static void load_args(int argc, char **argv) {
+	_argc = argc;
+	_argv = argv;
+}
+
+static void execute_func(func_t *func, int flags, int argc, char **args) {
+	int old_argc;
+	char **old_argv;
+	save_args(&old_argc, &old_argv);
+
+	// we need to keep $0
+	char *name = args[0];
+	args[0] = old_argv[0];
+
+	load_args(argc, args);
+	execute(func->node, flags);
+	load_args(old_argc, old_argv);
+
+	// restore func name
+	args[0] = name;
+}
+
 static void execute_cmd(node_t *node, int flags) {
 	char **args = word_expansion(node->cmd.args, node->cmd.args_count, 1);
 	if (!args) {
@@ -209,8 +236,10 @@ static void execute_cmd(node_t *node, int flags) {
 		exit_status = 0;
 		return;
 	}
+	int argc = args_count(args);
+
 	int status;
-	if ((status = try_builtin(args_count(args), args)) >= 0) {
+	if ((status = try_builtin(argc, args)) >= 0) {
 		exit_status = status;
 		free_args(args);
 		return;
@@ -219,8 +248,7 @@ static void execute_cmd(node_t *node, int flags) {
 	// now try function
 	func_t *func = get_func(args[0]);
 	if (func) {
-		// TODO : arg support
-		execute(func->node, flags);
+		execute_func(func, flags, argc, args);
 		free_args(args);
 		return;
 	}

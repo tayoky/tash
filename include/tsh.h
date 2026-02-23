@@ -126,6 +126,10 @@ typedef struct node {
 			case_t *cases;
 			size_t cases_count;
 		} _case;
+		struct {
+			char *name;
+			struct node *body;
+		} func;
 	};
 } node_t;
 
@@ -144,6 +148,7 @@ typedef struct node {
 #define NODE_GROUP    12
 #define NODE_FOR      13
 #define NODE_CASE     14
+#define NODE_FUNC     15
 
 typedef struct lexer {
 	token_t *putback;

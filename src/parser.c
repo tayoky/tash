@@ -92,6 +92,10 @@ void free_node(node_t *node) {
 		free_word(&node->_case.word);
 		free_cases(node->_case.cases, node->_case.cases_count);
 		break;
+	case NODE_FUNC:
+		free_node(node->func.body);
+		free(node->func.name);
+		break;
 	}
 	xfree(node);
 }
@@ -102,6 +106,7 @@ static void word_from_token(token_t *token, word_t *word) {
 }
 
 static node_t *parse_list(source_t *src, int multi_lines);
+static node_t *parse_command(source_t *src);
 
 // if cannot parse a list, automaticly trigger an error
 static node_t *must_parse_list(source_t *src, int multi_lines) {
@@ -467,6 +472,21 @@ static int parse_redir(source_t *src, token_t *first, redir_t *redir) {
 	return 0;
 }
 
+static int is_valid_name_char (char c) {
+	return isalnum(c) || c == '_' || c == '-';
+}
+
+static int is_valid_name(token_t *token) {
+	if (!token_is_word(token)) return 0;
+	char *ptr = token->value;
+	while (*ptr) {
+		if (!is_valid_name_char(*ptr)) return 0;
+		ptr++;
+	}
+	return 1;
+}
+
+
 static int parse_assignement(token_t *token, assign_t *assign) {
 	if (!token_is_word(token)) return -1;
 	if (!isalpha(token->value[0]) && token->value[0] != '_') return -1;
@@ -542,6 +562,40 @@ error:
 	return NULL;
 }
 
+static node_t *parse_func(source_t *src, token_t *name) {
+	// we aready parsed the name
+	if (expect_token(src, T_OPEN_PAREN) < 0) goto error;
+	if (expect_token(src, T_CLOSE_PAREN) < 0) goto error;
+
+	// FIXME : we should only allow a compound command
+	node_t *body = parse_command(src);
+	if (!body) {
+		if (!parser_error) {
+			token_t *next = next_token(src);
+			syntax_error("unexpected token '%s'", token_name(next));
+			destroy_token(next);
+		}
+		goto error;
+	}
+
+	if (!is_valid_name(name)) {
+		// TODO : get a token2str
+		syntax_error("invalid identifier");
+		free_node(body);
+		goto error;
+	}
+
+	node_t *func = new_node(NODE_FUNC);
+	func->func.body = body;
+	func->func.name = strdup(name->value);
+	destroy_token(name);
+	return func;
+error:
+	parser_error = 1;
+	destroy_token(name);
+	return NULL;
+}
+
 // parse a command (can be a simple command , if/while/for, subshell, ...)
 static node_t *parse_command(source_t *src) {
 	token_t *token = skip_newlines(src);
@@ -571,7 +625,15 @@ static node_t *parse_command(source_t *src) {
 	case T_OPEN_BRACES:
 		destroy_token(token);
 		return parse_group(src);
-	case T_WORD: // classic commands
+	case T_WORD:;
+		// do we have a func declaration ?
+		token_t *next = next_token(src);
+		unget_token(src, next);
+		if (next->type == T_OPEN_PAREN) {
+			// we have a func
+			return parse_func(src, token);
+		}
+		// it's a classic commands
 	case T_DUP_IN: // commands that start with a redir
 	case T_DUP_OUT:
 	case T_INFERIOR:
@@ -874,6 +936,14 @@ static void print_node(node_t *node, int depth) {
 	case NODE_BG:
 		fputs("bg\n", stderr);
 		print_node(node->single.child , depth + 1);
+		break;
+	case NODE_FUNC:
+		fputs("func\n", stderr);
+		print_depth(depth);
+		fprintf(stderr, "name : %s\n", node->func.name);
+		print_depth(depth);
+		fputs("body :\n", stderr);
+		print_node(node->func.body, depth + 1);
 		break;
 	}
 }

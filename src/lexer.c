@@ -140,7 +140,7 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			}
 			if (quote == '"') {
 				c = peek_char(src);
-				if (c == '$' || c == '"' || c == '`' || c == '\\') {
+				if (c != '$' && c != '"' && c != '`' && c != '\\' && c != '\n') {
 					APPEND('\\');
 					break;
 				}

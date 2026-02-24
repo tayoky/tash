@@ -208,7 +208,8 @@ int get_char(source_t *src);
 token_t *next_token(source_t *src);
 void unget_token(source_t *src, token_t *token);
 void destroy_token(token_t *token);
-const char *token_name(token_t *);
+const char *token_name(token_t *token);
+size_t token_len(token_t *token);
 int token_is_word(token_t *token);
 
 int try_builtin(int argc, char **argv);
@@ -218,8 +219,12 @@ int interpret(source_t *src);
 int eval(const char *str);
 int eval_script(const char *pathname);
 void execute(node_t *node, int flags);
-char **word_expansion(word_t *words, size_t words_count, int split);
+#define FLAG_NO_FORK 0x01
+
+// parsing/ AST manipulation
+node_t *parse_list_buf(const char *str, const char **end);
 void free_node(node_t *node);
+char **word_expansion(word_t *words, size_t words_count, int split);
 
 // jobs control
 

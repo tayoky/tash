@@ -15,16 +15,74 @@ static int is_special(int c) {
 #define APPEND(c) vector_push_back(dest, (char[]){c})
 
 // append a string safely, quoting char if necessary
-static void append_safe(vector_t *dest, const char *str, int in_quote) {
-	while (*str) {
+static void append_safe_len(vector_t *dest, const char *str, size_t len, int in_quote) {
+	while (len > 0) {
 		if ((in_quote && is_special(*str)) || is_dangerous(*str)) APPEND(CTLESC);
 		vector_push_back(dest, str);
 		str++;
+		len--;
 	}
+}
+
+static void append_safe(vector_t *dest, const char *str, int in_quote) {
+	return append_safe_len(dest, str, strlen(str), in_quote);
+}
+
+static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
+	int pipefd[2];
+	if (pipe(pipefd) < 0) {
+		perror("pipe");
+		return -1;
+	}
+	
+	group_t group;
+	job_init_group(&group);
+	if (job_fork(&group)) {
+		// we are the parent
+		close(pipefd[1]);
+
+		// collect child output
+		char buf[4096];
+		ssize_t r;
+		while ((r = read(pipefd[0], buf, sizeof(buf))) > 0) {
+			append_safe_len(dest, buf, r, in_quote);
+		}
+
+		job_wait(&group);
+		job_free_group(&group);
+		close(pipefd[0]);
+		return 0;
+	}
+	// we are the subshell
+	job_free_group(&group);
+	close(pipefd[0]);
+	if (pipefd[1] != STDOUT_FILENO) {
+		dup2(pipefd[1], STDOUT_FILENO);
+		close(pipefd[1]);
+	}
+	execute(node, FLAG_NO_FORK);
+	exit(exit_status);
 }
 
 static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	const char *src = *ptr;
+	if (*src == '(') {
+		// we got a subshell
+		src++;
+		const char *end;
+		node_t *node = parse_list_buf(src, &end);
+		if (!node) return -1;
+		if (*end != ')') {
+			error("bad substitution : %.*s", (int)(end - src + 2), src - 2);	
+			free_node(node);
+			return -1;
+		}
+		src = end;
+		*ptr = src;
+		int ret = execute_subshell(dest, in_quote, node);
+		free_node(node);
+		return ret;
+	}
 	int has_braces = 0;
 	int first_op = 0;
 	if (*src == '{') {
@@ -36,9 +94,9 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		}
 	}
 	const char *start = src;
-	const char *value = NULL;
 	char buf[32];
 	int already_handled = 0;
+	const char *value = NULL;
 	switch (*src) {
 	case '$':
 		sprintf(buf, "%ld", (long)shell_pid);

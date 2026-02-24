@@ -93,6 +93,19 @@ const char *token_name(token_t *token) {
 	}
 }
 
+size_t token_len(token_t *token) {
+	switch (token->type) {
+	case T_WORD:
+		return strlen(token->value);
+	case T_NEWLINE:
+		return 1;
+	case T_EOF:
+		return 0;
+	default:
+		return strlen(token_name(token));
+	}
+}
+
 static int is_delimiter(int c) {
 	if (c == EOF) return 1;
 	static char delimiters[] = " \t&|<>()\n;";

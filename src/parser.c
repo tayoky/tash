@@ -1008,6 +1008,33 @@ int eval(const char *str) {
 	return interpret(&src);
 }
 
+node_t *parse_list_buf(const char *str, const char **end) {
+	buf_t buf = {
+		.size = strlen(str),
+		.data = (void*)str,
+	};
+	source_t src = {
+		.get_char   = buf_getc,
+		.data       = &buf,
+		.unget = EOF,
+	};
+	node_t *node = must_parse_list(&src, 1);
+	// unget by hand
+	if (src.lexer.putback) {
+		token_t *putback = src.lexer.putback;
+		size_t len = token_len(putback);
+		if (len > buf.ptr) {
+			buf.ptr = 0;
+		} else {
+			buf.ptr -= len;
+		}
+		destroy_token(putback);
+	}
+	if (!node) return NULL;
+	*end = str + buf.ptr;
+	return node;
+}
+
 static int script_getc(void *data) {
 	int fd = (int)(uintptr_t)data;
 	char c;

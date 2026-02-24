@@ -19,7 +19,6 @@ int continue_depth = 0;
 int loop_depth = 0;
 int sigint_break = 0;
 
-#define FLAG_NO_FORK 0x01
 #define BREAK_CHECK if (break_depth > 0) {\
 	break_depth--;\
 	break;\

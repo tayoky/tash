@@ -101,9 +101,11 @@ static int is_delimiter(int c) {
 
 #define APPEND(c) vector_push_back(buf, (char[]){c})
 
-static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int end) {
+static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int end, int is_subshell) {
 	int quote = 0;
+	int first= 1;
 	for (;;) {
+		// check for delimiter only for top domain
 		if (quote == 0 && is_delimiter(c) && !end) {
 			unget_char(src, c);
 			return;
@@ -163,13 +165,13 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			if (next_c == '(') {
 				c = get_char(src);
 				if (c == EOF) return;
-				get_word_helper(src, buf, flags, c, ')');
+				get_word_helper(src, buf, flags, c, ')', 1);
 				break;
 			}
 			if (next_c == '{') {
 				c = get_char(src);
 				if (c == EOF) return;
-				get_word_helper(src, buf, flags, c, '}');
+				get_word_helper(src, buf, flags, c, '}', 0);
 				break;
 			}
 			// prevent the '*' from being quoted in "$*"
@@ -185,6 +187,15 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			if (quote) APPEND(CTLESC);
 			APPEND(c);
 			break;
+		case '(':
+			// if it's the first ignore
+			if (!is_subshell || quote || first) {
+				APPEND(c);
+				break;
+			}
+			if (c == EOF) return;
+			get_word_helper(src, buf, flags, c, ')', 1);
+			break;
 		case CTLESC:
 		case CTLQUOT:
 			APPEND(CTLESC);
@@ -195,6 +206,7 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			break;
 		}
 		c = get_char(src);
+		first = 0;
 		if (c == EOF) return;
 	}
 
@@ -302,7 +314,7 @@ token_t *next_token(source_t *src) {
 	// we have a word
 	vector_t buf = {0};
 	init_vector(&buf, sizeof(char));
-	get_word_helper(src, &buf, &token->flags, c, 0);
+	get_word_helper(src, &buf, &token->flags, c, 0, 0);
 	vector_push_back(&buf, (char[]){'\0'});
 	token->value = buf.data;
 

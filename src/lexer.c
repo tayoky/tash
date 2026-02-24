@@ -114,9 +114,9 @@ static int is_delimiter(int c) {
 
 #define APPEND(c) vector_push_back(buf, (char[]){c})
 
+// NOTE : when we are in a subshell we do not add quoting, cause the subshell we get re lexed
 static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int end, int is_subshell) {
 	int quote = 0;
-	int first= 1;
 	for (;;) {
 		// check for delimiter only for top domain
 		if (quote == 0 && is_delimiter(c) && !end) {
@@ -130,20 +130,28 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 		switch (c) {
 		case '\'':
 			if (quote == '"') {
-				APPEND(CTLESC);
+				if (!is_subshell) APPEND(CTLESC);
 				APPEND(c);
+				break;
+			} 
+			quote = quote == '\'' ? 0 : '\'';
+			if (is_subshell) {
+				APPEND('\'');
 			} else {
 				*flags |= WORD_HAS_QUOTE;
-				quote = quote == '\'' ? 0 : '\'';
 				APPEND(CTLQUOT);
 			}
 			break;
 		case '"':
 			if (quote == '\'') {
-				APPEND(CTLESC);
+				if (!is_subshell) APPEND(CTLESC);
 				APPEND(c);
+				break;
+			}
+			quote = quote == '"' ? 0 : '"';
+			if (is_subshell) {
+				APPEND('"');
 			} else {
-				quote = quote == '"' ? 0 : '"';
 				*flags |= WORD_HAS_QUOTE;
 				APPEND(CTLQUOT);
 			}
@@ -164,18 +172,27 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			if (c == '\n' || c == EOF) {
 				break;
 			}
-			APPEND(CTLESC);
+			if (is_subshell) {
+				APPEND('\\');
+			} else {
+				APPEND(CTLESC);
+			}
 			APPEND(c);
 			break;
 		case '$':
 			if (quote == '\'') {
-				APPEND(CTLESC);
+				if (!is_subshell) APPEND(CTLESC);
 				APPEND(c);
 				break;
 			}
 			APPEND(c);
 			int next_c = peek_char(src);
 			if (next_c == '(') {
+				// consume the (
+				c = get_char(src);
+				APPEND(c);
+
+				// prepare next char
 				c = get_char(src);
 				if (c == EOF) return;
 				get_word_helper(src, buf, flags, c, ')', 1);
@@ -184,7 +201,7 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			if (next_c == '{') {
 				c = get_char(src);
 				if (c == EOF) return;
-				get_word_helper(src, buf, flags, c, '}', 0);
+				get_word_helper(src, buf, flags, c, '}', is_subshell ? is_subshell + 1 : 0);
 				break;
 			}
 			// prevent the '*' from being quoted in "$*"
@@ -197,21 +214,22 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 		case ' ':
 		case '\t':
 		case '\n':
-			if (quote) APPEND(CTLESC);
+			if (quote && !is_subshell) APPEND(CTLESC);
 			APPEND(c);
 			break;
 		case '(':
-			// if it's the first ignore
-			if (!is_subshell || quote || first) {
-				APPEND(c);
+			// if we aren't in a subshell ignore
+			APPEND(c);
+			if (is_subshell != 1 || quote) {
 				break;
 			}
+			c = get_char(src);
 			if (c == EOF) return;
 			get_word_helper(src, buf, flags, c, ')', 1);
 			break;
 		case CTLESC:
 		case CTLQUOT:
-			APPEND(CTLESC);
+			if (!is_subshell) APPEND(CTLESC);
 			APPEND(c);
 			break;
 		default:
@@ -219,7 +237,6 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			break;
 		}
 		c = get_char(src);
-		first = 0;
 		if (c == EOF) return;
 	}
 

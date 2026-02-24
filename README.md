@@ -8,7 +8,7 @@ Soems of the features tash currently has :
 - for/while/until loops
 - pipes
 - && and || support
-- subshell with ( )
+- subshell with ( ) and $( )
 - command groups with { xxx ; }
 - tilde expansion
 - variables (assignements, temporary environement variables and expansion)

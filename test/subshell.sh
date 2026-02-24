@@ -1,7 +1,9 @@
 # test subshell substitution
 
 echo $(ls ..)
-#echo $(echo "(")
+echo $(echo "(")
+echo $(echo \()
+echo $(ec\ho hi\ s '${PATH}' "${PATH}")
 echo $(   ( echo yes && echo it work )
 )
 

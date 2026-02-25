@@ -409,6 +409,7 @@ static void do_prompt(void) {
 			handle_autocompletion();
 			break;
 		case '\n':
+			prompt_buf[prompt_len] = '\n';
 			putchar('\n');
 			prompt_len++;
 			goto finish;

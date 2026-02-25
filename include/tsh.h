@@ -159,6 +159,7 @@ typedef struct source {
 	int (*get_char)(void *);
 	int unget;
 	lexer_t lexer;
+	int eof;
 } source_t;
 
 typedef struct builtin {

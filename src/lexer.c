@@ -5,12 +5,17 @@
 #include <tsh.h>
 
 int get_char(source_t *src) {
+	if (src->eof) return EOF;
 	if (src->unget != EOF) {
 		int c = src->unget;
 		src->unget = EOF;
 		return c;
 	}
-	return src->get_char(src->data);
+	int c = src->get_char(src->data);
+	if (c == EOF) {
+		src->eof = 1;
+	}
+	return c;
 }
 
 int unget_char(source_t *src, int c) {

@@ -4,6 +4,9 @@
 #include <termios.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef WCHAR_SUPPORT
+#include <wchar.h>
+#endif
 #include <time.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -11,10 +14,15 @@
 #include "tsh.h"
 
 static struct termios old;
+static size_t prompt_cursor = 0;
+static size_t prompt_index  = 0;
+static size_t prompt_len = 0;
+#ifdef WCHAR_SUPPORT
+static wchar_t prompt_buf[256];
+static int prompt_subindex;
+#else
 static char prompt_buf[256];
-static int prompt_cursor = 0;
-static int prompt_index  = 0;
-static int prompt_len = 0;
+#endif
 
 static void show_cwd(void){
 	char cwd[256];
@@ -141,9 +149,14 @@ static void move(int m){
 		}
 	} else {
 		for(int i=0; i<m; i++){
+#ifdef WCHAR_SUPPORT
+			putwchar(prompt_buf[prompt_cursor+i]);
+#else
 			putchar(prompt_buf[prompt_cursor+i]);
+#endif
 		}
 	}
+
 	prompt_cursor += m;
 }
 
@@ -242,22 +255,43 @@ static void handle_escape(void) {
 	}
 }
 
+static void reprint_prompt(void) {
+	print_prompt();
+	int old_cursor = prompt_cursor;
+	prompt_cursor = 0;
+	redraw();
+	move(old_cursor);
+}
+
 static void handle_autocompletion(void) {
+	// first convert to mb char
+#ifdef WCHAR_SUPPORT
+	char buf[sizeof(prompt_buf)/sizeof(wchar_t)*MB_CUR_MAX];
+	prompt_buf[prompt_len] = '\0';
+	wcstombs(buf, prompt_buf, sizeof(buf));
+	size_t len = strlen(buf);
+	const wchar_t *src = prompt_buf;
+	size_t cursor = wcsnrtombs(NULL, &src, prompt_cursor, 0, NULL);
+#else
+#define buf prompt_buf
+#define len prompt_len
+#define cursor prompt_cursor
+#endif
 	// find the start and end of current arg
 	int search_command = 0;
-	int start = prompt_cursor > 0 ? prompt_cursor - 1 : 0;
-	while(start > 0 && !isblank(prompt_buf[start])){
+	size_t start = cursor > 0 ? cursor - 1 : 0;
+	while(start > 0 && !isblank(buf[start])){
 		start--;
 	}
-	if(isblank(prompt_buf[start]) && start < prompt_cursor){
+	if(isblank(buf[start]) && start < cursor){
 		start++;
 	}
-	int end = prompt_cursor;
-	while(end < prompt_len && !isblank(prompt_buf[end])){
+	size_t end = cursor;
+	while(end < len && !isblank(buf[end])){
 		end++;
 	}
 	char search[end-start+1];
-	memcpy(search,&prompt_buf[start],end-start);
+	memcpy(search,&buf[start],end-start);
 	search[end-start] = '\0';
 
 	char **fill = autocomplete(search);
@@ -265,7 +299,7 @@ static void handle_autocompletion(void) {
 		return;
 	}
 
-	// try to find something in common in all possibimity
+	// try to find something in common in all possibilities
 	size_t common = strlen(fill[0]);
 	for(size_t i=0; fill[i]; i++){
 		if(strncmp(fill[0],fill[i],common)){
@@ -314,22 +348,32 @@ static void handle_autocompletion(void) {
 
 		putchar('\n');
 
-		// reprint prompt
-		print_prompt();
-		int old_cursor = prompt_cursor;
-		prompt_cursor = 0;
-		redraw();
-		move(old_cursor);
+		reprint_prompt();
 
 		return;
 	}
 
-	memmove(&prompt_buf[start + common],&prompt_buf[end],prompt_len - end);
-	prompt_len += common - (end - start);
-	memcpy(&prompt_buf[start],fill[0],common);
-	move(start-prompt_cursor);
-	redraw();
-	move(start+common-prompt_cursor);
+	memmove(&buf[start + common], &prompt_buf[end], len - end);
+	len += common - (end - start);
+	memcpy(&buf[start], fill[0], common);
+
+#ifdef WCHAR_SUPPORT
+	buf[len] = 0;
+	if (mbstowcs(NULL, buf, 0) + 1 > sizeof(prompt_buf)/sizeof(wchar_t)) {
+		// no place
+		putchar('\n');
+		error("no place in prompt buffer");
+		reprint_prompt();
+		return;
+	}
+	mbstowcs(prompt_buf, buf, sizeof(prompt_buf)/sizeof(wchar_t));
+	prompt_len = wcslen(prompt_buf);
+	const char *buf_src = buf;
+	size_t cursor_end = mbsnrtowcs(NULL, &buf_src, start + common, 0, NULL);
+	move(cursor_end - prompt_cursor);
+#else
+	move(start + common - prompt_cursor);
+#endif
 }
 
 static void do_prompt(void) {
@@ -340,11 +384,19 @@ static void do_prompt(void) {
 	prompt_index = 0;
 	prompt_cursor = 0;
 	prompt_len = 0;
+#ifdef WCHAR_SUPPORT
+	prompt_subindex = 0;
+#endif
+
 	for(;;){
 		fflush(stdout);
+#ifdef WCHAR_SUPPORT
+		wint_t c = getwchar();
+#else
 		int c = getchar();
+#endif
 		if(c == old.c_cc[VEOF]){
-			if(prompt_len >0)continue;
+			if(prompt_len > 0)continue;
 			prompt_buf[0] = 0;
 			prompt_len++;
 			goto finish;
@@ -357,11 +409,6 @@ static void do_prompt(void) {
 			handle_autocompletion();
 			break;
 		case '\n':
-			// final reprint of the line
-			prompt_buf[prompt_len] = c;
-			while(prompt_cursor < prompt_len){
-				putchar(prompt_buf[prompt_cursor++]);
-			}
 			putchar('\n');
 			prompt_len++;
 			goto finish;
@@ -371,17 +418,21 @@ static void do_prompt(void) {
 				break;
 			}
 			move(-1);
-			memmove(&prompt_buf[prompt_cursor],&prompt_buf[prompt_cursor+1],prompt_len-prompt_cursor);
+			memmove(&prompt_buf[prompt_cursor],&prompt_buf[prompt_cursor+1],(prompt_len-prompt_cursor) * sizeof(*prompt_buf));
 			prompt_len--;
 			redraw();
 			break;
-		default:
-			memmove(&prompt_buf[prompt_cursor+1],&prompt_buf[prompt_cursor],prompt_len-prompt_cursor);
+		default:;
+			memmove(&prompt_buf[prompt_cursor+1],&prompt_buf[prompt_cursor],(prompt_len-prompt_cursor) * sizeof(*prompt_buf));
 			prompt_buf[prompt_cursor] = c;
-			prompt_len++;
+			prompt_len ++;
 			redraw();
-			prompt_cursor++;
+			prompt_cursor ++;
+#ifdef WCHAR_SUPPORT
+			putwchar(c);
+#else
 			putchar(c);
+#endif
 			break;
 		}
 
@@ -401,5 +452,17 @@ int prompt_getc(void){
 		prompt_index++;
 		return EOF;
 	}
+#ifdef WCHAR_SUPPORT
+	char buf[MB_CUR_MAX];
+	int len = wctomb(buf, prompt_buf[prompt_index]);
+	unsigned char ret = (unsigned char)buf[prompt_subindex];
+	prompt_subindex++;
+	if (prompt_subindex >= len) {
+		prompt_subindex = 0;
+		prompt_index++;
+	}
+	return ret;
+#else
 	return (unsigned char)prompt_buf[prompt_index++];
+#endif
 }

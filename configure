@@ -41,7 +41,11 @@ for i in "$@"; do
 			shift
 			;;
 		--debug)
-			OPT="-DDEBUG $OPT"
+			OPT="-DDEBUG=1 $OPT"
+			shift
+			;;
+		--wchar-support)
+			OPT="-DWCHAR_SUPPORT=1 $OPT"
 			shift
 			;;
 		-*|--*)

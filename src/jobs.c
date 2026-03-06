@@ -23,7 +23,7 @@ void job_report_termination(int status, int bg) {
 		// only interactive shell print messages
 		if ((flags & TASH_INTERACTIVE) && !bg && (flags & TASH_JOB_CONTROL)) fprintf(stderr, "terminated on %s\n", strsignal(WTERMSIG(status)));
 		if (!bg && WTERMSIG(status) == SIGINT && (flags & TASH_JOB_CONTROL)) {
-			sigint_break = 1;
+			block_break = 1;
 		}
 #endif
 	}

@@ -17,7 +17,10 @@ int exit_status = 0;
 int break_depth = 0;
 int continue_depth = 0;
 int loop_depth = 0;
-int sigint_break = 0;
+int stack_depth = 0;
+
+// TODO : make this break out of scripts
+int block_break = 0;
 
 #define BREAK_CHECK if (break_depth > 0) {\
 	break_depth--;\
@@ -29,7 +32,7 @@ int sigint_break = 0;
 	else continue;\
 }
 
-#define SIGINT_CHECK if (sigint_break) break;
+#define BLOCK_BREAK_CHECK if (block_break) break;
 
 static void free_args(char **args) {
 	char **arg = args;
@@ -226,7 +229,9 @@ static void execute_func(func_t *func, int flags, int argc, char **args) {
 	args[0] = old_argv[0];
 
 	load_args(argc, args);
+	stack_depth++;
 	execute(func->node, flags);
+	stack_depth--;
 	load_args(old_argc, old_argv);
 
 	// restore func name
@@ -357,16 +362,13 @@ static void execute_for(node_t *node, int flags) {
 		}
 		BREAK_CHECK
 		CONTINUE_CHECK
-		SIGINT_CHECK
+		BLOCK_BREAK_CHECK
 	}
 	loop_depth--;
 	free_args(strings);
 }
 
 static void execute_case(node_t *node, int flags) {
-	// TODO
-	(void)node;
-	(void)flags;
 	char **word = word_expansion(&node->_case.word, 1, 0);
 	if (!word) {
 		// expansion error
@@ -419,7 +421,7 @@ static void execute_async(node_t *node, int cmd_flags) {
 void execute(node_t *node, int flags) {
 	if (!node) return;
 	if (break_depth > 0 || continue_depth > 0) return;
-	if (sigint_break) return;
+	if (block_break) return;
 	vector_t redirs_save = {0};
 	init_vector(&redirs_save, sizeof(saved_fd_t));
 	if (apply_redirs(node->redirs, node->redirs_count, &redirs_save) < 0) return;
@@ -462,11 +464,11 @@ void execute(node_t *node, int flags) {
 			if (exit_status != 0) break;
 			BREAK_CHECK
 			CONTINUE_CHECK
-			SIGINT_CHECK
+			BLOCK_BREAK_CHECK
 			execute(node->loop.body, flags & ~FLAG_NO_FORK);
 			BREAK_CHECK
 			CONTINUE_CHECK
-			SIGINT_CHECK
+			BLOCK_BREAK_CHECK
 		}
 		loop_depth--;
 		break;
@@ -478,11 +480,11 @@ void execute(node_t *node, int flags) {
 			if (exit_status == 0) break;
 			BREAK_CHECK
 			CONTINUE_CHECK
-			SIGINT_CHECK
+			BLOCK_BREAK_CHECK
 			execute(node->loop.body, flags & ~FLAG_NO_FORK);
 			BREAK_CHECK
 			CONTINUE_CHECK
-			SIGINT_CHECK
+			BLOCK_BREAK_CHECK
 		}
 		loop_depth--;
 		break;

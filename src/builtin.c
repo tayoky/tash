@@ -133,7 +133,9 @@ static int builtin_src(int argc, char **argv) {
 	char **old_argv = _argv;
 	_argc = argc - 1;
 	_argv = &argv[1];
+	stack_depth++;
 	eval_script(argv[1]);
+	stack_depth--;
 	_argc = old_argc;
 	_argv = old_argv;
 	return exit_status;
@@ -280,6 +282,27 @@ static int builtin_wait(int argc, char **argv) {
 	}
 }
 
+static int builtin_return(int argc, char **argv) {
+	if (stack_depth == 0) {
+		error("return : 'return' only work in sourced scripts and functions");
+		return 1;
+	}
+	if (argc > 2) {
+		error("return : too many arguments");
+		return 1;
+	} else if (argc == 2) {
+		char *ptr;
+		int status = strtol(argv[1],&ptr,10);
+		if(ptr == argv[1]){
+			error("return : numeric argument required");
+			exit_status = 2;
+		}
+		exit_status = status;
+	}
+	block_break = 1;
+	return exit_status;
+}
+
 #define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
 static builtin_t builtin[] = {
 	CMD("cd"      ,builtin_cd),
@@ -295,6 +318,7 @@ static builtin_t builtin[] = {
 	CMD("break"   ,builtin_break),
 	CMD("continue",builtin_continue),
 	CMD("wait"    ,builtin_wait),
+	CMD("return"  ,builtin_return),
 };
 
 // TODO handle SIGINT in builtins

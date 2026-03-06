@@ -25,3 +25,12 @@ arg_func () {
 arg_func hi
 arg_func "hello   from func"
 arg_func test1 "test   2"
+
+# test func with return
+func_ret () {
+	echo yes
+	return 2
+	echo no
+}
+func_ret
+echo $?

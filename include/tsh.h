@@ -189,7 +189,8 @@ extern int exit_status;
 extern int break_depth;
 extern int continue_depth;
 extern int loop_depth;
-extern int sigint_break;
+extern int stack_depth;
+extern int block_break; // break from current block (func, script, ...)
 extern pid_t shell_pid;
 extern pid_t shell_pgid;
 #define TASH_LOGIN       (1 << 0)

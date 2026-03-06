@@ -28,3 +28,4 @@ tconf_check_code "$CC" "fcntl" "#include <fcntl.h>
 void func() { fcntl(0, 0, 0); }"
 
 tconf_fini
+exit 0

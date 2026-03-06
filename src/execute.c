@@ -281,6 +281,7 @@ static void execute_cmd(node_t *node, int flags) {
 }
 
 static void execute_pipe(node_t *node, int flags) {
+#ifdef HAVE_PIPE
 	int in = -1;
 	group_t group;
 	job_init_group(&group);
@@ -325,6 +326,11 @@ static void execute_pipe(node_t *node, int flags) {
 
 	job_wait(&group);
 	job_free_group(&group);
+#else
+	(void)node;
+	exit_status = 1;
+	error("compiled without pipe support");
+#endif
 }
 
 static void execute_for(node_t *node, int flags) {

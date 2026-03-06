@@ -29,6 +29,7 @@ static void append_safe(vector_t *dest, const char *str, int in_quote) {
 }
 
 static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
+#ifdef HAVE_PIPE
 	int pipefd[2];
 	if (pipe(pipefd) < 0) {
 		perror("pipe");
@@ -62,6 +63,13 @@ static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
 	}
 	execute(node, FLAG_NO_FORK);
 	exit(exit_status);
+#else
+	(void)dest;
+	(void)in_quote;
+	(void)node;
+	exit_status = 1;
+	error("compiled without pipe support");
+#endif
 }
 
 static int handle_var(vector_t *dest, const char **ptr, int in_quote) {

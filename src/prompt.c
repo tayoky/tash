@@ -139,10 +139,12 @@ static void print_prompt(void) {
 
 static void move(int m){
 	if(!m)return;
+#ifdef HAVE_SYS_IOCTL_H
 	struct winsize win;
 	if(ioctl(STDOUT_FILENO,TIOCGWINSZ,&win) < 0){
 		win.ws_col = 80;
 	}
+#endif
 	if(m < 0){
 		for(int i=0; i>m; i--){
 			putchar('\b');

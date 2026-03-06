@@ -13,7 +13,7 @@ char **_argv;
 
 void help(void){
 	puts("usage : tash [OPTIONS] [SCRIPT] [ARGUMENTS]...");
-	puts("Without SCRIPT d ARGUMENTS, tash will launch a shell.");
+	puts("Without SCRIPT and ARGUMENTS, tash will launch a shell.");
 	puts("If SCRIPT is provided tash will execute the specified script");
 	puts("-i, --interactive : launch an interactive shell");
 	puts("-l, --login       : same effect as if argv[0][0] == '-', make the lauched shell a login shell");

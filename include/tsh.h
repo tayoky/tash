@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <vector.h>
 #include <stdio.h>
+#include <stub.h>
 
 typedef struct token {
 	char *value;

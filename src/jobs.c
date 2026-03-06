@@ -1,6 +1,10 @@
 #include <sys/wait.h>
+#ifdef HAVE_TERMIOS_H
 #include <termios.h>
+#endif
+#ifdef HAVE_SIGNAL_H
 #include <signal.h>
+#endif
 #include <unistd.h>
 #include <string.h>
 #include <vector.h>
@@ -13,6 +17,7 @@
 void job_report_termination(int status, int bg) {
 	if (WIFEXITED(status)) {
 		exit_status = WEXITSTATUS(status);
+#ifdef HAVE_SIGNAL_H
 	} else if(WIFSIGNALED(status)) {
 		exit_status = WTERMSIG(status) + 128;
 		// only interactive shell print messages
@@ -20,10 +25,12 @@ void job_report_termination(int status, int bg) {
 		if (!bg && WTERMSIG(status) == SIGINT && (flags & TASH_JOB_CONTROL)) {
 			sigint_break = 1;
 		}
+#endif
 	}
 }
 
 void job_control_setup(void) {
+#ifdef HAVE_SIGNAL_H
 	if (flags & TASH_JOB_CONTROL) {
 		signal(SIGTTOU, SIG_IGN);
 		signal(SIGTTIN, SIG_IGN);
@@ -34,6 +41,7 @@ void job_control_setup(void) {
 		signal(SIGTSTP, SIG_DFL);
 		signal(SIGINT , SIG_DFL);
 	}
+#endif
 }
 
 void job_init_group(group_t *group) {
@@ -75,7 +83,7 @@ pid_t job_fork_async(group_t *group) {
 pid_t job_fork(group_t *group) {
 	pid_t child = job_fork_async(group);
 	if (child <= 0) return child;
-		
+#ifdef HAVE_TERMIOS_H
 	if (group->pid == child) {
 		// it's the group leader
 		// se we need to setup foreground group
@@ -83,6 +91,7 @@ pid_t job_fork(group_t *group) {
 			tcsetpgrp(STDIN_FILENO, group->pid);
 		}
 	}
+#endif
 	return child;
 }
 
@@ -100,9 +109,11 @@ int job_wait(group_t *group) {
 		waitpid(*(pid_t*)vector_at(&group->childs, i), &status, 0);
 		job_report_termination(status, 0);
 	}
+#ifdef HAVE_TERMIOS_H
 	if (flags & TASH_JOB_CONTROL) {
 		tcsetpgrp(STDIN_FILENO, getpgid(0));
 	}
+#endif
 	return 0;
 }
 

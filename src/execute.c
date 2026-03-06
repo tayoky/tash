@@ -50,7 +50,11 @@ static int args_count(char **args) {
 }
 
 static int have_fd(int fd) {
+#ifdef HAVE_FCNTL
 	return fcntl(fd, F_GETFD, 0) >= 0;
+#else
+	return 1;
+#endif
 }
 
 static void flush_fd(int fd) {
@@ -64,6 +68,7 @@ static void flush_fd(int fd) {
 }
 
 static int save_fd(int fd, saved_fd_t *saved) {
+#ifdef HAVE_FCNTL
 	saved->original = fd;
 	if ((saved->flags = fcntl(fd, F_GETFD, 0)) < 0) {
 		perror("save fd");
@@ -86,9 +91,14 @@ static int save_fd(int fd, saved_fd_t *saved) {
 	}
 #endif
 	return 0;
+#else
+	error("compiled without fcntl and redirection support");
+	return -1;
+#endif
 }
 
 static void restore_fd(saved_fd_t *saved) {
+#ifdef HAVE_FCNTL
 	flush_fd(saved->original);
 	if (dup2(saved->saved, saved->original) < 0) {
 		perror("restore fd");
@@ -99,6 +109,9 @@ static void restore_fd(saved_fd_t *saved) {
 		perror("restore fd");
 	}
 	close(saved->saved);
+#else
+	(void)saved;
+#endif
 }
 
 static void restore_fds(vector_t *save) {
@@ -142,7 +155,7 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 					flags |= O_TRUNC;
 				}
 			}
-			src = open(*val, flags, 0777);
+			src = open(*val, flags, 0666);
 			if (src < 0) {
 				perror(*val);
 				free_args(val);

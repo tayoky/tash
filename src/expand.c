@@ -45,7 +45,21 @@ static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
 		// collect child output
 		char buf[4096];
 		ssize_t r;
+		size_t nl_count = 0;
 		while ((r = read(pipefd[0], buf, sizeof(buf))) > 0) {
+			// we need to bring back newlines we have stripped before
+			for (size_t i=0; i<nl_count; i++) {
+				append_safe(dest, "\n", in_quote);
+			}
+
+			// strip newlines
+			nl_count = 0;
+			char *nl = buf + r - 1;
+			while (nl >= buf && *nl == '\n') {
+				r--;
+				nl--;
+				nl_count++;
+			}
 			append_safe_len(dest, buf, r, in_quote);
 		}
 

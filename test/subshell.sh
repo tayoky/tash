@@ -10,3 +10,6 @@ echo $(   ( echo yes && echo it work )
 echo $(echo hi)
 echo $(uname -m)
 echo $(realpath $(dirname $0))
+
+# posix shell must always remove trayling newlines
+echo "$(echo test1 test2)"

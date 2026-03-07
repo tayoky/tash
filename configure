@@ -23,10 +23,8 @@ tconf_check_header "$CC" sys/ioctl.h
 tconf_check_header "$CC" sys/stat.h
 
 # check some functions
-tconf_check_code "$CC" "pipe" "#include <unistd.h>
-void func() { int pipefd[2]; pipe(pipefd); }"
-tconf_check_code "$CC" "fcntl" "#include <fcntl.h>
-void func() { fcntl(0, 0, 0); }"
+tconf_check_func "$CC" "unistd.h" "pipe"
+tconf_check_func "$CC" "fcntl.h" "fcntl"
 
 tconf_fini
 exit 0

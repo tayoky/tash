@@ -299,7 +299,7 @@ static int builtin_return(int argc, char **argv) {
 		}
 		exit_status = status;
 	}
-	block_break = 1;
+	return_break = 1;
 	return exit_status;
 }
 

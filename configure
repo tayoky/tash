@@ -3,8 +3,9 @@
 
 tconf_init "$@"
 
-tconf_search_cc ""
+tconf_search_cc "$HOST"
 tconf_require "C compiler" "$CC"
+tconf_find_os
 tconf_require_header "$CC" stdio.h
 tconf_require_header "$CC" stdlib.h
 tconf_require_header "$CC" stddef.h

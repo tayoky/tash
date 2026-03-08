@@ -70,7 +70,8 @@ static void flush_fd(int fd) {
 }
 
 static int save_fd(int fd, saved_fd_t *saved) {
-#ifdef HAVE_FCNTL
+	// we need dup2 to restore
+#if defined(HAVE_FCNTL) && defined(HAVE_DUP2)
 	saved->original = fd;
 	if ((saved->flags = fcntl(fd, F_GETFD, 0)) < 0) {
 		perror("save fd");
@@ -100,7 +101,7 @@ static int save_fd(int fd, saved_fd_t *saved) {
 }
 
 static void restore_fd(saved_fd_t *saved) {
-#ifdef HAVE_FCNTL
+#if defined(HAVE_FCNTL) && defined(HAVE_DUP2)
 	flush_fd(saved->original);
 	if (dup2(saved->saved, saved->original) < 0) {
 		perror("restore fd");
@@ -138,7 +139,7 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 			free_args(val);
 			goto error;
 		}
-
+#ifdef HAVE_DUP2
 		int src;
 		int src_is_fd = 0;
 		if (redirs[i].type & REDIR_DUP) {
@@ -146,6 +147,7 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 			src = strtol(*val, &end, 10);
 			src_is_fd = 1;
 		} else {
+#ifdef HAVE_OPEN
 			int flags;
 			if (redirs[i].type & REDIR_IN) {
 				flags = O_RDONLY;
@@ -163,6 +165,11 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 				free_args(val);
 				goto error;
 			}
+#else
+			error("compiled without open and file redirection support");
+			free_args(val);
+			goto error;
+#endif
 		}
 
 		// save before apply if neccesary
@@ -185,6 +192,11 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 		}
 		if (!src_is_fd) close(src);
 		free_args(val);
+#else
+		error("compiled without dup2 and redirection support");
+		free_args(val);
+		return -1;
+#endif
 	}
 	return 0;
 error:
@@ -279,7 +291,7 @@ static void execute_cmd(node_t *node, int flags) {
 }
 
 static void execute_pipe(node_t *node, int flags) {
-#ifdef HAVE_PIPE
+#if defined(HAVE_PIPE) && defined(HAVE_DUP2)
 	int in = -1;
 	group_t group;
 	job_init_group(&group);
@@ -401,11 +413,13 @@ static void execute_async(node_t *node, int cmd_flags) {
 
 	if (!(flags & TASH_JOB_CONTROL)) {
 		// redirect /dev/null as input
+#if defined(HAVE_OPEN) && defined(HAVE_DUP2)
 		int null = open("/dev/null", O_RDONLY);
 		if (null >= 0 && null != STDIN_FILENO) {
 			dup2(null, STDIN_FILENO);
 			close(null);
 		}
+#endif
 	}
 	execute(node->single.child, FLAG_NO_FORK);
 	exit(exit_status);

@@ -3,7 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <vector.h>
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
 #include <ctype.h>
 #include <tash.h>
 
@@ -1090,6 +1092,7 @@ node_t *parse_list_buf(const char *str, const char **end) {
 	return node;
 }
 
+#ifdef HAVE_OPEN
 static int script_getc(void *data) {
 	int fd = (int)(uintptr_t)data;
 	char c;
@@ -1117,3 +1120,37 @@ int eval_script(const char *pathname) {
 	if (fd != STDIN_FILENO) close(fd);
 	return exit_status;
 }
+#else
+static int script_getc(void *data) {
+	return fgetc(data);
+}
+
+int eval_script(const char *pathname) {
+	FILE *file = NULL;
+	if (!strcmp(pathname, "-")) {
+		file = stdin;
+	} else {
+		file = fopen(pathname, "r");
+		if (!file) {
+			perror(pathname);
+			exit_status = 1;
+			return exit_status;
+		}
+	}
+	source_t src = {
+		.data = (void*)file,
+		.get_char = script_getc,
+		.unget = EOF,
+	};
+
+	// we are going to assume system without setvbuf does not have bffering
+	// or at least with not cause problems with it
+#ifdef HAVE_SETVBUF
+	setvbuf(file, NULL, _IONBF, 0);
+#endif
+
+	interpret(&src);	
+	if (file != stdin) fclose(file);
+	return exit_status;
+}
+#endif

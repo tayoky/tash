@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdint.h>
-#include "tsh.h"
+#include <tash.h>
 
 extern char **environ;
 

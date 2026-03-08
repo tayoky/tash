@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <vector.h>
-#include <tsh.h>
+#include <tash.h>
 
 int get_char(source_t *src) {
 	if (src->eof) return EOF;

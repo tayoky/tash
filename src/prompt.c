@@ -8,10 +8,14 @@
 #include <wchar.h>
 #endif
 #include <time.h>
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
+#endif
 #include <sys/stat.h>
+#ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
-#include "tsh.h"
+#endif
+#include <tash.h>
 
 static struct termios old;
 static size_t prompt_cursor = 0;
@@ -180,6 +184,7 @@ static int alpha_sort(const void *e1,const void *e2){
 }
 
 static char **autocomplete(char *str){
+#ifdef HAVE_DIRENT_H
 	char *file = strrchr(str,'/') ? strrchr(str,'/') + 1: str;
 	char *dir = file == str ? strdup("")  : strndup(str,file - str);
 	DIR *dirfd = opendir(!strcmp(dir,"") ? "." : dir);
@@ -206,6 +211,10 @@ static char **autocomplete(char *str){
 	}
 	closedir(dirfd);
 	free(dir);
+#else
+	char *fill = NULL;
+	size_t count = 0;
+#endif
 	fill = realloc(fill,sizeof(char*)*(count+1));
 	fill[count] = NULL;
 	return fill;

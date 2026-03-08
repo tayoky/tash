@@ -1,6 +1,6 @@
 #include <ctype.h>
 #include <vector.h>
-#include <tsh.h>
+#include <tash.h>
 
 // do word expansion
 

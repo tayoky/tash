@@ -1,7 +1,9 @@
 #include <sys/stat.h>
-#include <stdio.h>
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
-#include <tsh.h>
+#endif
+#include <stdio.h>
+#include <tash.h>
 
 int glob_match(const char *glob, const char *str) {
 	const char *str_start  = NULL;
@@ -49,6 +51,7 @@ int glob_match(const char *glob, const char *str) {
 }
 
 static void glob_file_recur(vector_t *found, vector_t *prefix, const char *glob) {
+#ifdef HAVE_DIRENT_H
 	size_t previous_count = prefix->count;
 	// we need to get the prefix the globed part and the suffix
 	const char *prefix_start = glob;
@@ -122,6 +125,9 @@ static void glob_file_recur(vector_t *found, vector_t *prefix, const char *glob)
 
 	xfree(globing);
 	prefix->count = previous_count;
+#else
+	error("compiled without dirent and file globing support");
+#endif
 }
 
 char **glob_files(const char *glob) {

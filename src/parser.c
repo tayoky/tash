@@ -5,7 +5,7 @@
 #include <vector.h>
 #include <fcntl.h>
 #include <ctype.h>
-#include <tsh.h>
+#include <tash.h>
 
 static int parser_error;
 int prompt;

@@ -3,7 +3,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <tsh.h>
+#include <tash.h>
 
 pid_t shell_pid;
 pid_t shell_pgid;

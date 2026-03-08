@@ -4,7 +4,7 @@
 #include <vector.h>
 #include <fcntl.h>
 #include <ctype.h>
-#include <tsh.h>
+#include <tash.h>
 
 typedef struct saved_fd {
 	int original;

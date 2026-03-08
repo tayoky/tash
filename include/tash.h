@@ -1,5 +1,5 @@
-#ifndef _TSH_H
-#define _TSH_H
+#ifndef TASH_H
+#define TASH_H
 
 #include <errno.h>
 #include <string.h>
@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <vector.h>
 #include <stdio.h>
+#include <stub.h>
 
 typedef struct token {
 	char *value;

@@ -24,6 +24,7 @@ tconf_check_header "$CC" sys/stat.h
 
 # check some functions
 tconf_check_func "$CC" "unistd.h" "pipe"
+tconf_check_func "$CC" "unistd.h" "isatty"
 tconf_check_func "$CC" "fcntl.h" "fcntl"
 
 tconf_fini

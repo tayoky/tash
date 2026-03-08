@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include <tsh.h>
+#include <tash.h>
 
 #ifdef DEBUG
 static size_t allocs_count = 0;

@@ -979,6 +979,12 @@ int interpret(source_t *src) {
 		xmem_stat();
 		// FIXME : we should do the check at more places
 		if (exit_status != 0 && (flags & TASH_ERR_EXIT)) break;
+
+		// we might need to return from script
+		if (return_break) {
+			return_break = 0;
+			break;
+		}
 	}
 	return exit_status;
 }

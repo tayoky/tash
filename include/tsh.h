@@ -182,6 +182,7 @@ typedef struct group {
 
 extern int _argc;
 extern char **_argv;
+extern char *_argv0;
 extern int flags;
 extern int prompt;
 extern pid_t last_background;

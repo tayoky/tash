@@ -5,6 +5,7 @@
 int flags;
 int _argc;
 char **_argv;
+char *_argv0;
 
 #define OPT(name,f) if(!strcmp(name,opt)){\
 	flags |= f;\
@@ -25,8 +26,9 @@ int main(int argc,char **argv){
 	//parse args and set flags
 	flags = 0 ;
 	//by default only $0 with shell path
-	_argc = argc > 0 ? 1 : 0;
-	_argv = argv;
+	_argc = argc - 1;
+	_argv = argv + 1;
+	_argv0 = argv[0];
 	if(argc > 0 && argv[0][0] == '-'){
 		flags |= TASH_LOGIN;
 	}
@@ -78,8 +80,9 @@ int main(int argc,char **argv){
 	} else if(argc - i >= 1){
 		// shell launched with script or option
 		// in script mode remove everything before script name from arguement
-		_argc = argc - i;
-		_argv = &argv[i];
+		_argc = argc - i - 1;
+		_argv = argv + i + 1;
+		_argv0 = argv[i];
 		init();
 		return eval_script(argv[i]);
 	} else {

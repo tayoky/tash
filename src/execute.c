@@ -223,19 +223,12 @@ static void execute_func(func_t *func, int flags, int argc, char **args) {
 	char **old_argv;
 	save_args(&old_argc, &old_argv);
 
-	// we need to keep $0
-	char *name = args[0];
-	args[0] = old_argv[0];
-
 	load_args(argc, args);
 	stack_depth++;
 	execute(func->node, flags);
 	stack_depth--;
 	return_break = 0;
 	load_args(old_argc, old_argv);
-
-	// restore func name
-	args[0] = name;
 }
 
 static void execute_cmd(node_t *node, int flags) {
@@ -265,7 +258,7 @@ static void execute_cmd(node_t *node, int flags) {
 	// now try function
 	func_t *func = get_func(args[0]);
 	if (func) {
-		execute_func(func, flags, argc, args);
+		execute_func(func, flags, argc-1, args+1);
 		free_args(args);
 		return;
 	}

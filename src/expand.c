@@ -133,19 +133,19 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		value = buf;
 		break;
 	case '#':
-		sprintf(buf, "%d", _argc - 1);
+		sprintf(buf, "%d", _argc);
 		value = buf;
 		break;
 	case '@':
 		if (first_op == '#') {
 			// we want to print len
-			sprintf(buf, "%d", _argc - 1);
+			sprintf(buf, "%d", _argc);
 			append_safe(dest, buf, in_quote);
 			already_handled = 1;
 			break;
 		}
 
-		for (int i=1; i<_argc; i++) {
+		for (int i=0; i<_argc; i++) {
 			append_safe(dest, _argv[i], in_quote);
 			if (i != _argc - 1) {
 				// do not CTLESC it
@@ -157,7 +157,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		already_handled = 1;
 		break;
 	case '*':
-		for (int i=1; i<_argc; i++) {
+		for (int i=0; i<_argc; i++) {
 			append_safe(dest, _argv[i], in_quote);
 			if (i != _argc - 1) {
 				if (in_quote) APPEND(CTLESC);
@@ -167,12 +167,14 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		already_handled = 1;
 		break;
 	case '0':
+		value = _argv0;
+		break;
 	case '1': case '2': case '3':
 	case '4': case '5': case '6':
 	case '7': case '8': case '9':;
-		int index = *src - '0';
+		int index = *src - '1';
 		if (index >= _argc) value = NULL;
-		value = _argv[index];
+		else value = _argv[index];
 		break;
 	default:
 		while (isalnum(*src) || *src == '_') {

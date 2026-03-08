@@ -1,11 +1,10 @@
 # test . built in
-# TODO : this test is highly broken on tash
 
-if [ "$1" = "test" ] ; then
+if [ "$TEST" = "sourced" ] ; then
 	export TEST=hello
-	exit
+	return 0
 fi
 
-export TEST=""
-#. ./src.sh test
-#echo $TEST
+export TEST="sourced"
+. ./src.sh
+echo $TEST $0

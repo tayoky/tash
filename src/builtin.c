@@ -54,9 +54,9 @@ static int builtin_exit(int argc, char **argv) {
 		error("exit : too many arguments");
 		return 1;
 	} else if (argc == 2) {
-		char *ptr;
-		int status = strtol(argv[1],&ptr,10);
-		if(ptr == argv[1]){
+		char *end;
+		int status = strtol(argv[1],&end,10);
+		if(end == argv[1] || *end){
 			error("exit : numeric argument required");
 			exit(2);
 		}
@@ -131,13 +131,16 @@ static int builtin_src(int argc, char **argv) {
 	// save argc/argv to restore after
 	int old_argc = _argc;
 	char **old_argv = _argv;
-	_argc = argc - 1;
-	_argv = &argv[1];
+	char *old_argv0 = _argv0;
+	_argc = argc - 2;
+	_argv = argv + 2;
+	_argv0 = argv[1];
 	stack_depth++;
 	eval_script(argv[1]);
 	stack_depth--;
 	_argc = old_argc;
 	_argv = old_argv;
+	_argv0 = old_argv0;
 	return exit_status;
 }
 
@@ -216,7 +219,7 @@ static int builtin_break(int argc, char **argv) {
 	} else if (argc == 2) {
 		char *end;
 		break_depth = strtol(argv[1], &end, 10);
-		if (end == argv[1]) {
+		if (end == argv[1] || *end) {
 			error("break : numeric argument required");
 			return 1;
 		}
@@ -239,7 +242,7 @@ static int builtin_continue(int argc, char **argv) {
 	} else if (argc == 2) {
 		char *end;
 		continue_depth = strtol(argv[1], &end, 10);
-		if (end == argv[1]) {
+		if (end == argv[1] || *end) {
 			error("continue : numeric argument required");
 			return 1;
 		}
@@ -291,9 +294,9 @@ static int builtin_return(int argc, char **argv) {
 		error("return : too many arguments");
 		return 1;
 	} else if (argc == 2) {
-		char *ptr;
-		int status = strtol(argv[1],&ptr,10);
-		if(ptr == argv[1]){
+		char *end;
+		int status = strtol(argv[1],&end,10);
+		if(end == argv[1] || *end){
 			error("return : numeric argument required");
 			exit_status = 2;
 		}
@@ -301,6 +304,33 @@ static int builtin_return(int argc, char **argv) {
 	}
 	return_break = 1;
 	return exit_status;
+}
+
+static int builtin_shift(int argc, char **argv) {
+	int amount;
+	if (argc < 2) {
+		amount = 1;
+	} else if (argc == 2) {
+		char *end;
+		amount = strtol(argv[1], &end, 10);
+		if (end == argv[1] || *end) {
+			error("shift : numeric argument required");
+			return 1;
+		}
+	} else {
+		error("shift : too many arguments");
+		return 1;
+	}
+	if (amount < 0) {
+		return 1;
+	}
+	if (amount > _argc) {
+		_argc = 0;
+		return 1;
+	}
+	_argc -= amount;
+	_argv += amount;
+	return 0;
 }
 
 #define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
@@ -319,6 +349,7 @@ static builtin_t builtin[] = {
 	CMD("continue",builtin_continue),
 	CMD("wait"    ,builtin_wait),
 	CMD("return"  ,builtin_return),
+	CMD("shift"   ,builtin_shift),
 };
 
 // TODO handle SIGINT in builtins

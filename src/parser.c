@@ -107,6 +107,7 @@ static void word_from_token(token_t *token, word_t *word) {
 
 static node_t *parse_list(source_t *src, int multi_lines);
 static node_t *parse_command(source_t *src);
+static node_t *parse_compound_command(source_t *src);
 
 // if cannot parse a list, automaticly trigger an error
 static node_t *must_parse_list(source_t *src, int multi_lines) {
@@ -567,8 +568,7 @@ static node_t *parse_func(source_t *src, token_t *name) {
 	if (expect_token(src, T_OPEN_PAREN) < 0) goto error;
 	if (expect_token(src, T_CLOSE_PAREN) < 0) goto error;
 
-	// FIXME : we should only allow a compound command
-	node_t *body = parse_command(src);
+	node_t *body = parse_compound_command(src);
 	if (!body) {
 		if (!parser_error) {
 			token_t *next = next_token(src);
@@ -596,35 +596,84 @@ error:
 	return NULL;
 }
 
-// parse a command (can be a simple command , if/while/for, subshell, ...)
-static node_t *parse_command(source_t *src) {
+// parse a compound command (can be a if/while/for, subshell, ...)
+static node_t *parse_compound_command(source_t *src) {
 	token_t *token = skip_newlines(src);
 
 	prompt = 2;
 
-	// TODO : parse redirections on others than simple command
+	node_t *node;
 	switch (token->type) {
 	case T_IF:
 		destroy_token(token);
-		return parse_if(src);
+		node = parse_if(src);
+		break;
 	case T_FOR:
 		destroy_token(token);
-		return parse_for(src);
+		node = parse_for(src);
+		break;
 	case T_WHILE:
 		destroy_token(token);
-		return parse_loop(src, NODE_WHILE);
+		node = parse_loop(src, NODE_WHILE);
+		break;
 	case T_UNTIL:
 		destroy_token(token);
-		return parse_loop(src, NODE_UNTIL);
+		node = parse_loop(src, NODE_UNTIL);
+		break;
 	case T_CASE:
 		destroy_token(token);
-		return parse_case(src);
+		node = parse_case(src);
+		break;
 	case T_OPEN_PAREN:
 		destroy_token(token);
-		return parse_subshell(src);
+		node = parse_subshell(src);
+		break;
 	case T_OPEN_BRACES:
 		destroy_token(token);
-		return parse_group(src);
+		node = parse_group(src);
+		break;
+	default:
+		unget_token(src, token);
+		return NULL;
+	}
+	if (!node) return NULL;
+
+	redir_t redir;
+	vector_t redirs = {0};
+	init_vector(&redirs, sizeof(redir_t));
+
+	token = next_token(src);
+	while (token->type == T_DUP_IN
+		|| token->type == T_DUP_OUT
+		|| token->type == T_INFERIOR
+		|| token->type == T_SUPERIOR
+		|| token->type == T_APPEND) {
+		if (parse_redir(src, token, &redir) < 0) goto error;
+		vector_push_back(&redirs, &redir);
+		destroy_token(token);
+		token = next_token(src);
+	}
+	unget_token(src, token);
+	node->redirs            = redirs.data;
+	node->redirs_count      = redirs.count;
+	return node;
+error:
+	parser_error = 1;
+	free_node(node);
+	free_redirs(redirs.data, redirs.count);
+	destroy_token(token);
+	return NULL;
+}
+
+// parse a command (can be a simple command, compound command or func declare)
+static node_t *parse_command(source_t *src) {
+	node_t *node = parse_compound_command(src);
+	if (node || parser_error) return node;
+	token_t *token = skip_newlines(src);
+
+	prompt = 2;
+	
+	switch (token->type) {
 	case T_WORD:;
 		// do we have a func declaration ?
 		token_t *next = next_token(src);

@@ -31,4 +31,3 @@ tconf_check_func "$CC" "fcntl.h" "fcntl"
 tconf_check_func "$CC" "fcntl.h" "open"
 
 tconf_fini
-exit 0

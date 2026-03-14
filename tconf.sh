@@ -12,6 +12,10 @@ generate config.mk from environement
 --as=AS set the assembler
 --ar=AR set the archiver
 --ld=LD set the linker
+--objcopy=OBJCOPY set the object copy utility
+--strip=STRIP set the striper
+--nm=NM set the nm
+--pkgconfig=PKGCONFIG set the pkg-config
 --cflags=CFLAGS set cutsom flags for C compilation
 --cxxflags=CXXFLAGS set custom flags for C++ compilation
 --arflags=ASFLAGS set the flags for assembling
@@ -21,6 +25,7 @@ generate config.mk from environement
 --build=BUILD set the build os, can be set if tconf cannot determinate the build os
 --clear-cache clear the cache before doing anything
 --prefix=PREFIX set the prefix
+--sysroot=SYSROOT, --with-sysroot=SYSROOT set the sysroot
 --debug compile with debug options actived
 --help show this help and exit"
 }
@@ -61,8 +66,20 @@ tconf_init () {
 		--ld=*|LD=*)
 			LD="${i#*=}"
 			;;
-		--prefix=*|PREFIX=*)
-			PREFIX="${i#*=}"
+		--objcopy=*|OBJCOPY=*)
+			OBJCOPY="${i#*=}"
+			;;
+		--readelf=*|READELF=*)
+			READELF="${i#*=}"
+			;;
+		--strip=*|STRIP=*)
+			STRIP="${i#*=}"
+			;;
+		--nm=*|NM=*)
+			NM="${i#*=}"
+			;;
+		--pkgconfig=*|PKGCONFIG=*)
+			PKGCONFIG="${i#*=}"
 			;;
 		--cflags=*|CFLAGS=*)
 			CFLAGS="${i#*=}"
@@ -84,6 +101,12 @@ tconf_init () {
 			;;
 		--build=*|BUILD=*)
 			BUILD="${i#*=}"
+			;;
+		--prefix=*|PREFIX=*)
+			PREFIX="${i#*=}"
+			;;
+		--with-sysroot=*|--sysroot=*)
+			SYSROOT="${i#*=}"
 			;;
 		--debug)
 			OPT="$OPT -DDEBUG=1"
@@ -115,6 +138,7 @@ tconf_fini () {
 	{
 		echo "# automaticly generated from $(basename "$0")"
 		tconf_echo_conf PREFIX "$PREFIX"
+		tconf_echo_conf SYSROOT "$SYSROOT"
 		tconf_echo_conf CC "$CC"
 		tconf_echo_conf CXX "$CXX"
 		tconf_echo_conf AS "$AS"
@@ -123,14 +147,20 @@ tconf_fini () {
 		tconf_echo_conf READELF "$READELF"
 		tconf_echo_conf OBJCOPY "$OBJCOPY"
 		tconf_echo_conf STRIP "$STRIP"
-		tconf_echo_conf CFLAGS "$CFLAGS $OPT"
-		tconf_echo_conf CXXFLAGS "$CXXFLAGS $OPT"
+		tconf_echo_conf NM "$NM"
+		tconf_echo_conf PKGCONFIG "$PKGCONFIG"
+
+		# avoid triggering CFLAGS or CXXFLAGS just because of options
+		# use them only if the corresponding compiler is used
+		test -n "$CC"  && tconf_echo_conf CFLAGS "$CFLAGS$OPT"
+		test -n "$CXX" && tconf_echo_conf CXXFLAGS "$CXXFLAGS$OPT"
 		tconf_echo_conf ASFLAGS "$ASFLAGS"
 		tconf_echo_conf ARFLAGS "$ASFLAGS"
 		tconf_echo_conf LDFLAGS "$LDFLAGS"
 		tconf_echo_conf HOST "$HOST"
 		tconf_echo_conf ARCH "$ARCH"
 	} > "$TOP/config.mk"
+	return 0
 }
 
 tconf_add_subdir () {
@@ -139,8 +169,8 @@ tconf_add_subdir () {
 		return 1
 	fi
 	for SUBDIR in "$@" ; do
-		export CC CXX AS AR LD
-		export READELF OBJCOPY
+		export CC CXX AS AR LD NM
+		export READELF OBJCOPY STRIP
 		export CFLAGS CXXFLAGS ASFLAGS
 		export ARFLAGS LDFLAGS
 		export HOST BUILD TARGET
@@ -157,6 +187,14 @@ tconf_to_macro_name () {
 
 tconf_to_file_name () {
 	echo "$@" | tr " " "_"
+}
+
+tconf_set_var () {
+	eval "$1='$2'"
+}
+
+tconf_get_var () {
+	eval "echo \"\$$1\""
 }
 
 tconf_require () {
@@ -268,21 +306,29 @@ tconf_check_cc_option () {
 }
 
 tconf_search_util () {
-	if test -z "$1" ; then
-		tconf_print "usage : tconf_search_util NAME PREFIX UTILS..."
+	if test -z "$2" ; then
+		tconf_print "usage : tconf_search_util VAR NAME PREFIX UTILS..."
 		return 1
 	fi
 
-	UTIL_PREFIX="$2"
-	test -n "$UTIL_PREFIX" && UTIL_PREFIX="$UTIL_PREFIX-"
-	tconf_print -n "search $1... "
+	UTIL_VAR="$1"
+	tconf_print -n "search $2... "
 
-	# skip arg and prefix
-	shift 2
+	# test if aready set
+	if test -n "$UTIL_VAR" && test -n "$(tconf_get_var $UTIL_VAR)" ; then
+		tconf_print "$(tconf_get_var $UTIL_VAR)"
+		return 0
+	fi
+	
+	UTIL_PREFIX="$3"
+	test -n "$UTIL_PREFIX" && UTIL_PREFIX="$UTIL_PREFIX-"
+
+	# skip name var and prefix
+	shift 3
 	for util in "$@" ; do
 		if ${UTIL_PREFIX}$util --version 2>/dev/null >/dev/null ; then
+			test -n "$UTIL_VAR" && tconf_set_var $UTIL_VAR "${UTIL_PREFIX}$util"
 			tconf_print "${UTIL_PREFIX}$util"
-			echo "${UTIL_PREFIX}$util"
 			return 0
 		fi
 	done
@@ -295,11 +341,15 @@ tconf_search_cc () {
 		tconf_print "usage : tconf_search_cc PREFIX"
 		return 1
 	fi
-	if test -n "$CC" ; then
-		tconf_print "check C compiler... $CC"
-		return 0
+	tconf_search_util CC "C compiler" "$1" gcc clang tcc cc
+}
+
+tconf_search_cxx () {
+	if [ $# != 1 ] ; then
+		tconf_print "usage : tconf_search_cxx PREFIX"
+		return 1
 	fi
-	CC="$(tconf_search_util "C compiler" "$1" gcc clang tcc cc)"
+	tconf_search_util CXX "C++ compiler" "$1" g++ c++ gpp cxx
 }
 
 tconf_search_as () {
@@ -307,11 +357,7 @@ tconf_search_as () {
 		tconf_print "usage : tconf_search_as PREFIX"
 		return 1
 	fi
-	if test -n "$AS" ; then
-		tconf_print "check assembler... $AS"
-		return 0
-	fi
-	AS="$(tconf_search_util "assembler" "$1" gas as)"
+	tconf_search_util AS "assembler" "$1" gas as
 }
 
 tconf_search_ar () {
@@ -319,11 +365,7 @@ tconf_search_ar () {
 		tconf_print "usage : tconf_search_ar PREFIX"
 		return 1
 	fi
-	if test -n "$AR" ; then
-		tconf_print "check archiver... $AR"
-		return 0
-	fi
-	AR="$(tconf_search_util "archiver" "$1" ar llvm-ar "tcc -ar")"
+	tconf_search_util AR "archiver" "$1" ar llvm-ar "tcc -ar"
 }
 
 tconf_search_ld () {
@@ -331,11 +373,39 @@ tconf_search_ld () {
 		tconf_print "usage : tconf_search_ld PREFIX"
 		return 1
 	fi
-	if test -n "$LD" ; then
-		tconf_print "check linker... $LD"
-		return 0
+	tconf_search_util LD "linker" "$1" ld
+}
+
+tconf_search_objcopy () {
+	if [ $# != 1 ] ; then
+		tconf_print "usage : tconf_search_objcopy PREFIX"
+		return 1
 	fi
-	LD="$(tconf_search_util "linker" "$1" ld)"
+	tconf_search_util OBJCOPY "objcopy" "$1" objcopy
+}
+
+tconf_search_strip () {
+	if [ $# != 1 ] ; then
+		tconf_print "usage : tconf_search_strip PREFIX"
+		return 1
+	fi
+	tconf_search_util STRIP "strip" "$1" strip
+}
+
+tconf_search_nm () {
+	if [ $# != 1 ] ; then
+		tconf_print "usage : tconf_search_nm PREFIX"
+		return 1
+	fi
+	tconf_search_util NM "nm" "$1" nm llvm-nm
+}
+
+tconf_search_pkgconfig () {
+	if [ $# != 1 ] ; then
+		tconf_print "usage : tconf_search_pkgconfig PREFIX"
+		return 1
+	fi
+	tconf_search_util PKGCONFIG "pkg-config" "$1" pkg-config
 }
 
 tconf_find_build () {

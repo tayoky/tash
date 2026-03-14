@@ -14,7 +14,7 @@ tconf_require_header "$CC" ctype.h
 tconf_require_header "$CC" string.h
 tconf_require_header "$CC" sys/wait.h
 tconf_require_header "$CC" unistd.h
-tconf_require_header "$CC" fcntl.h
+tconf_check_header "$CC" fcntl.h
 tconf_check_header "$CC" termios.h
 tconf_check_header "$CC" signal.h
 tconf_check_header "$CC" dirent.h

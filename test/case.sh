@@ -10,8 +10,12 @@ esac
 echo $?
 
 TEST=test2
+CASE="t*t?"
 case $TEST in
-	test?)
+	"t*t?")
+		echo wrong
+		;;
+	$CASE)
 		echo right
 		false
 		;;

@@ -261,7 +261,7 @@ static int first_expansion(vector_t *dest, const char *src) {
 	return 0;
 }
 
-static char *expand_word(word_t *word) {
+char *expand_word_ctl(word_t *word) {
 	// TODO : more expansion
 	vector_t v1 = {0};
 	vector_t v2 = {0};
@@ -365,7 +365,7 @@ char **word_expansion(word_t *words, size_t words_count, int split) {
 	init_vector(&strings, sizeof(char*));
 
 	for (size_t i=0; i<words_count; i++) {
-		char *expanded = expand_word(&words[i]);
+		char *expanded = expand_word_ctl(&words[i]);
 		if (!expanded) goto error;
 
 		// now do spliting + pathname expansion

@@ -386,11 +386,13 @@ static void execute_case(node_t *node, int flags) {
 		int matched = 0;
 		case_t *_case = &node->_case.cases[i];
 		for (size_t j=0; j<_case->patterns_count; j++) {
-			// TODO : do some expansion
-			if (glob_match(_case->patterns[j].text, *word)) {
+			char *pattern = expand_word_ctl(&_case->patterns[j]);
+			if (glob_match(pattern, *word)) {
 				matched = 1;
+				free(pattern);
 				break;
 			}
+			free(pattern);
 		}
 		if (matched) {
 			execute(_case->body, flags);

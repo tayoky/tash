@@ -229,6 +229,11 @@ void execute(node_t *node, int flags);
 // parsing/ AST manipulation
 node_t *parse_list_buf(const char *str, const char **end);
 void free_node(node_t *node);
+
+/**
+ * @brief expand a word, keeping ctl char and doing no spliting
+ */
+char *expand_word_ctl(word_t *word);
 char **word_expansion(word_t *words, size_t words_count, int split);
 
 // jobs control

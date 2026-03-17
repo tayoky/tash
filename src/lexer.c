@@ -209,13 +209,14 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 				get_word_helper(src, buf, flags, c, '}', is_subshell ? is_subshell + 1 : 0);
 				break;
 			}
-			// prevent the '*' from being quoted in "$*"
-			if (next_c == '*') {
+			// prevent the '*' or '?' from being quoted in "$*" or "$?"
+			if (next_c == '*' || next_c == '?') {
 				APPEND(get_char(src));
 				break;
 			}
 			break;
 		case '*':
+		case '?':
 		case ' ':
 		case '\t':
 		case '\n':

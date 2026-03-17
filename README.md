@@ -13,6 +13,7 @@ Soems of the features tash currently has :
 - tilde expansion
 - variables (assignements, temporary environement variables and expansion)
 - redirections (only on commands)
+- parameter expansion ${} with - = + and ? support
 - case statements with dynamic expansion in cases
 - async commands with & (without job control)
 - functions with argument support

@@ -74,6 +74,7 @@ int main(int argc,char **argv){
 			error("missing command string");
 			return 1;
 		}
+		_argc = 0;
 		init();
 		
 		return eval(argv[2]);

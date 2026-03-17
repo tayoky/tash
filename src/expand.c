@@ -11,7 +11,7 @@ static int is_dangerous(int c) {
 }
 
 static int is_special(int c) {
-	return c == ' ' || c == '\t' || c == '\n' || c == '*' || c == '~' || is_dangerous(c);
+	return c == ' ' || c == '\t' || c == '\n' || c == '*' || c == '?' || c == '~' || is_dangerous(c);
 }
 
 static void remove_ctlesc(char *str) {
@@ -127,10 +127,11 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 			src++;
 		}
 	}
-	const char *start = src;
+	const char *param = src;
 	char buf[32];
 	int already_handled = 0;
 	const char *value = NULL;
+	char *var = NULL;
 	switch (*src) {
 	case '$':
 		sprintf(buf, "%ld", (long)shell_pid);
@@ -192,7 +193,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		while (isalnum(*src) || *src == '_') {
 			src++;
 		}
-		if (src == start) {
+		if (src == param) {
 			if (has_braces) {
 				goto bad_substitution;
 			}
@@ -201,12 +202,15 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 			APPEND('$');
 			return 0;
 		}
-		char *var = xstrndup(start, src - start);
+		var = xstrndup(param, src - param);
 		value = getvar(var);
-		xfree(var);
 		src--;
 		break;
 	}
+
+	const char *param_end = src;
+	size_t param_len = param_end - param + 1;
+
 	if (has_braces) {
 		src++;
 		if (!has_op) {
@@ -242,9 +246,9 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 					break;
 				case '=':
 					if (is_unset) {
-						vector_push_multiple_back(dest, word, strlen(word));
-						// TODO : also assign
-						already_handled = 1;
+						remove_ctlesc(word);
+						putvar(var, word);
+						value = getvar(var);
 					}
 					break;
 				case '?':
@@ -253,6 +257,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 						remove_ctlesc(word);
 						error("%s", word);
 						xfree(word);
+						xfree(var);
 						return -1;
 					}
 					break;
@@ -266,15 +271,18 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 				xfree(word);
 			} else if (has_op == ':') {
 				// we must have something after a ":"
+				xfree(var);
 				goto bad_substitution;
 			}
 		}
 		if (*src != '}') {
 bad_substitution:
+			xfree(var);
 			error("bad substitution");
 			return -1;
 		}
 	}
+	xfree(var);
 	*ptr = src;
 	if (already_handled) {
 		return 0;
@@ -283,7 +291,7 @@ bad_substitution:
 		// var is unset
 		if (flags & TASH_UNSET_EXIT) {
 unset_variable:
-			error("variable unset");
+			error("'%.*s' : variable unset", (int)param_len, param);
 			return -1;
 		}
 		return 0;

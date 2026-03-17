@@ -6,3 +6,7 @@ echo 'home is '$HOME
 echo PATH is ${PATH}
 echo test is $TEST
 echo test len is ${#TEST}
+
+HELLO=
+echo test :- ${HELLO:-"stuff"}
+echo test :- ${HELLO:-../sr?}

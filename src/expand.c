@@ -4,12 +4,24 @@
 
 // do word expansion
 
+static char *expand_string_ctl(const char *str, int braces_stop, const char **end);
+
 static int is_dangerous(int c) {
 	return c == CTLESC || c == CTLQUOT;
 }
 
 static int is_special(int c) {
 	return c == ' ' || c == '\t' || c == '\n' || c == '*' || c == '~' || is_dangerous(c);
+}
+
+static void remove_ctlesc(char *str) {
+	char *src = str;
+	char *dest = str;
+	while (*src) {
+		if (*src != CTLESC) *(dest++) = *src;
+		src++;
+	}
+	*dest = '\0';
 }
 
 #define APPEND(c) vector_push_back(dest, (char[]){c})
@@ -106,12 +118,12 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		return ret;
 	}
 	int has_braces = 0;
-	int first_op = 0;
+	int has_op = 0;
 	if (*src == '{') {
 		has_braces = 1;
 		src++;
 		if (*src == '#') {
-			first_op = '#';
+			has_op = '#';
 			src++;
 		}
 	}
@@ -137,7 +149,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		value = buf;
 		break;
 	case '@':
-		if (first_op == '#') {
+		if (has_op == '#') {
 			// we want to print len
 			sprintf(buf, "%d", _argc);
 			append_safe(dest, buf, in_quote);
@@ -182,8 +194,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		}
 		if (src == start) {
 			if (has_braces) {
-				error("bad substitution");
-				return -1;
+				goto bad_substitution;
 			}
 			src--;
 			*ptr = src;
@@ -198,7 +209,68 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	}
 	if (has_braces) {
 		src++;
+		if (!has_op) {
+			int is_unset = !value;
+			if (*src == ':') {
+				has_op = ':';
+				src++;
+
+				// the ":" prefix mean "handle empty like it's unset"
+				if (value && !value[0]) {
+					is_unset = 1;
+				}
+			}
+			if (*src == '-' || *src == '=' || *src == '?' || *src == '+') {
+				has_op = *src;
+				src++;
+
+				// we must ecpand first the word given after the operand
+				const char *end;
+				char *word = expand_string_ctl(src, 1, &end);
+				if (!word) return -1;
+				src = end;
+				if (*src != '}') {
+					xfree(word);
+					goto bad_substitution;
+				}
+				switch (has_op) {
+				case '-':
+					if (is_unset) {
+						vector_push_multiple_back(dest, word, strlen(word));
+						already_handled = 1;
+					}
+					break;
+				case '=':
+					if (is_unset) {
+						vector_push_multiple_back(dest, word, strlen(word));
+						// TODO : also assign
+						already_handled = 1;
+					}
+					break;
+				case '?':
+					if (is_unset) {
+						if (!*word) goto unset_variable;
+						remove_ctlesc(word);
+						error("%s", word);
+						xfree(word);
+						return -1;
+					}
+					break;
+				case '+':
+					if (!is_unset) {
+						vector_push_multiple_back(dest, word, strlen(word));
+						already_handled = 1;
+					}
+					break;
+				}
+				xfree(word);
+			} else if (has_op == ':') {
+				// we must have something after a ":"
+				goto bad_substitution;
+			}
+		}
 		if (*src != '}') {
+bad_substitution:
 			error("bad substitution");
 			return -1;
 		}
@@ -210,12 +282,13 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	if (!value) {
 		// var is unset
 		if (flags & TASH_UNSET_EXIT) {
+unset_variable:
 			error("variable unset");
 			return -1;
 		}
 		return 0;
 	}
-	if (first_op == '#') {
+	if (has_op == '#') {
 		sprintf(buf, "%zu", strlen(value));
 		value = buf;
 	}
@@ -223,8 +296,14 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	return 0;
 }
 
-// handle parameter, braces and tilde expansion
-static int first_expansion(vector_t *dest, const char *src) {
+/**
+ * @brief handle parameter, braces and tilde expansion
+ * @param dest the destination vector/string
+ * @param src the source lexed but unexpanded string
+ * @param braces_stop stop on right brace
+ * @param end set to the first non parsed char
+ */
+static int first_expansion(vector_t *dest, const char *src, int braces_stop, const char **end) {
 	int in_quote = 0;
 	// tilde expansion
 	if (*src == '~') {
@@ -251,23 +330,28 @@ static int first_expansion(vector_t *dest, const char *src) {
 		} else if (*src == '$') {
 			src++;
 			if (handle_var(dest, &src, in_quote) < 0) return -1;
+		} else if (*src == '}' && braces_stop) {
+			APPEND('\0');
+			if (end) *end = src;
+			return 0;
 		} else {
 			vector_push_back(dest, src);
 		}
 		src++;
 
 	}
+	if (end) *end = src;
 	vector_push_back(dest, src);
 	return 0;
 }
 
-char *expand_word_ctl(word_t *word) {
+static char *expand_string_ctl(const char *str, int braces_stop, const char **end) {
 	// TODO : more expansion
 	vector_t v1 = {0};
 	vector_t v2 = {0};
 	init_vector(&v1, sizeof(char));
 	init_vector(&v2, sizeof(char));
-	if (first_expansion(&v1, word->text) < 0) goto error;
+	if (first_expansion(&v1, str, braces_stop, end) < 0) goto error;
 	free_vector(&v2);
 	return v1.data;
 error:
@@ -276,14 +360,8 @@ error:
 	return NULL;
 }
 
-static void remove_ctlesc(char *str) {
-	char *src = str;
-	char *dest = str;
-	while (*src) {
-		if (*src != CTLESC) *(dest++) = *src;
-		src++;
-	}
-	*dest = '\0';
+char *expand_word_ctl(word_t *word) {
+	return expand_string_ctl(word->text, 0, NULL);
 }
 
 // do a single split on a word and pathname expansion

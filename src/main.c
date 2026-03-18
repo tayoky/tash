@@ -43,7 +43,9 @@ int main(int argc,char **argv){
 			OPT("login",TASH_LOGIN);
 			OPT("interactive",TASH_INTERACTIVE);
 			if(!strcmp(opt,"version")){
-				printf("tash %s by tayoky\n",TASH_VERSION);
+				printf("tash %s\n",TASH_VERSION);
+				puts("Copyright (c) 2025-2026 Tayoky BSD 3-Clause");
+				puts("This is free software: you are free to change and redistribute it.");
 				return 0;
 			}
 			if(!strcmp(opt,"help")){

@@ -4,55 +4,74 @@
 
 extern char **environ;
 
-size_t var_count = 0;
-struct var *var = NULL;
+size_t vars_count = 0;
+var_t *vars = NULL;
 
-void putvar(const char *name,const char *value){
-	//see if it already exist
-	for(size_t i=0; i<var_count; i++){
-		if(!strcmp(name,var[i].name)){
-			xfree(var[i].value);
-			var[i].value = xstrdup(value);
-			return;
-		}
-	}
-	var = xrealloc(var,(var_count+1) * sizeof(struct var));
-	var[var_count].name     = xstrdup(name);
-	var[var_count].value    = xstrdup(value);
-	var[var_count].exported = 0;
-	var_count++;
-}
-
-char *getvar(const char *name){
-	for(size_t i=0; i<var_count; i++){
-		if(!strcmp(name,var[i].name)){
-			return var[i].value;
+static var_t *var_from_name(const char *name) {
+	for (size_t i=0; i<vars_count; i++) {
+		if (!strcmp(name,vars[i].name)) {
+			return &vars[i];
 		}
 	}
 	return NULL;
 }
 
-void export_var(const char *name){
-	for(size_t i=0; i<var_count; i++){
-		if(!strcmp(name,var[i].name)){
-			var[i].exported = 1;
-			return;
-		}
+void putvar(const char *name,const char *value){
+	//see if it already exist
+	var_t *variable = var_from_name(name);
+	if (variable) {
+		xfree(variable->value);
+		variable->value = xstrdup(value);
+		return;
 	}
-	var = xrealloc(var,(var_count+1) * sizeof(struct var));
-	var[var_count].name     = xstrdup(name);
-	var[var_count].value    = xstrdup("");
-	var[var_count].exported = 1;
-	var_count++;
+
+	vars = xrealloc(vars,(vars_count+1) * sizeof(var_t));
+	vars[vars_count].name     = xstrdup(name);
+	vars[vars_count].value    = xstrdup(value);
+	vars[vars_count].exported = 0;
+	vars_count++;
+}
+
+char *getvar(const char *name){
+	var_t *variable = var_from_name(name);
+	return variable ? variable->value : NULL;
+}
+
+int unset_var(const char *name){
+	var_t *variable = var_from_name(name);
+	if (!variable) return 0;
+	xfree(variable->name);
+	xfree(variable->value);
+
+	// do the swap with last trick
+	var_t *last = &vars[vars_count-1];
+	if (last != variable) {
+		memcpy(variable, last, sizeof(var_t));
+	}
+	vars_count--;
+	return 1;
+}
+
+void export_var(const char *name){
+	var_t *variable = var_from_name(name);
+	if (variable) {
+		variable->exported = 1;
+		return;
+	}
+	vars = xrealloc(vars,(vars_count+1) * sizeof(var_t));
+	vars[vars_count].name     = xstrdup(name);
+	vars[vars_count].value    = xstrdup("");
+	vars[vars_count].exported = 1;
+	vars_count++;
 }
 
 void setup_environ(void){
-	//FIXME : are we leaking memory
+	//FIXME : are we leaking memory?
 	environ[0] = NULL;
-	for(size_t i=0; i<var_count; i++){
-		if(!var[i].exported)continue;
-		char *env = xmalloc(strlen(var[i].name) + strlen(var[i].value) + 2);
-		sprintf(env,"%s=%s",var[i].name,var[i].value);
+	for(size_t i=0; i<vars_count; i++){
+		if(!vars[i].exported)continue;
+		char *env = xmalloc(strlen(vars[i].name) + strlen(vars[i].value) + 2);
+		sprintf(env,"%s=%s",vars[i].name,vars[i].value);
 		putenv(env);
 	}
 }

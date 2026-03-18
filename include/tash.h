@@ -272,6 +272,7 @@ int prompt_getc(void);
 // variable management
 void putvar(const char *name,const char *value);
 char *getvar(const char *name);
+int unset_var(const char *name);
 void export_var(const char *name);
 void setup_environ(void);
 void setup_var(void);
@@ -290,14 +291,14 @@ void setup_funcs(void);
 void init();
 
 
-struct var {
+typedef struct var {
 	int exported;
 	char *value;
 	char *name;
-};
+} var_t;
 
-extern size_t var_count;
-extern struct var *var;
+extern size_t vars_count;
+extern var_t *vars;
 
 // cute custom perror
 #undef perror

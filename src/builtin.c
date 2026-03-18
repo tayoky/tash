@@ -68,8 +68,8 @@ static int builtin_exit(int argc, char **argv) {
 
 static int builtin_export(int argc, char **argv) {
 	if (argc < 2 || !strcmp(argv[1], "-p")) {
-		for (size_t i=0; i<var_count; i++) {
-			if (var[i].exported) printf("%s=%s\n", var[i].name, var[i].value);
+		for (size_t i=0; i<vars_count; i++) {
+			if (vars[i].exported) printf("%s=%s\n", vars[i].name, vars[i].value);
 		}
 		return 0;
 	}
@@ -333,6 +333,44 @@ static int builtin_shift(int argc, char **argv) {
 	return 0;
 }
 
+static int builtin_unset(int argc, char **argv) {
+	int i=1;
+	int do_func = 0;
+	int do_var  = 0;
+	while (i < argc && argv[i][0] == '-') {
+		if (!strcmp(argv[i], "--")) {
+			i++;
+			break;
+		}
+		for (int k=1; argv[i][k]; k++) {
+			switch (argv[i][k]) {
+			case 'v':
+				do_var = 1;
+				break;
+			case 'f':
+				do_func = 1;
+				break;
+			default:
+				error("unset : unknow options '-%c'", argv[i][k]);
+				return 1;
+			}
+		}
+		i++;
+	}
+
+	if (!do_var && !do_func) {
+		// by default try the two
+		do_var = 1;
+		do_func = 1;
+	}
+		
+	for (int j=i; j<argc; j++) {
+		if (do_var && unset_var(argv[j])) continue;
+		if (do_func) unregister_func(argv[j]);
+	}
+	return 0;
+}
+
 #define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
 static builtin_t builtin[] = {
 	CMD("cd"      ,builtin_cd),
@@ -350,6 +388,7 @@ static builtin_t builtin[] = {
 	CMD("wait"    ,builtin_wait),
 	CMD("return"  ,builtin_return),
 	CMD("shift"   ,builtin_shift),
+	CMD("unset"   ,builtin_unset),
 };
 
 // TODO handle SIGINT in builtins

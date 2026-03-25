@@ -111,7 +111,7 @@ static int remove_prefix_suffix(vector_t *dest, int in_quote, const char *value,
 				}
 			}
 		} else {
-			for (const char *cur=end-1; cur>=start; cur--) {
+			for (const char *cur=end; cur>=start; cur--) {
 				if (glob_match(pattern, cur)) {
 					end = cur;
 					break;
@@ -129,6 +129,15 @@ static int remove_prefix_suffix(vector_t *dest, int in_quote, const char *value,
 				}
 			}
 		} else {
+			size_t best = 0;
+			for (size_t cur=len;; cur--) {
+				dup[cur] = '\0';
+				if (glob_match(pattern, dup)) {
+					best = cur;
+				}
+				if (cur == 0) break;
+			}
+			start += best;
 		}
 		xfree(dup);
 	}

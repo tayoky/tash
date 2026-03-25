@@ -4,7 +4,13 @@
 #include <tash.h>
 
 static int builtin_set(int argc, char **argv) {
-	for (int i=1; i<argc; i++) {
+	int i=1;
+	for (; i<argc; i++) {
+		if (argv[i][0] != '-') break;
+		if (!strcmp(argv[i], "--")) {
+			i++;
+			break;
+		}
 		int mask  = 0;
 		char *f = argv[i];
 		if (!*f) goto invalid;
@@ -41,11 +47,27 @@ static int builtin_set(int argc, char **argv) {
 		if (mask & TASH_JOB_CONTROL) {
 			job_control_setup();
 		}
+		if (i == argc - 1) {
+			// last option
+			return 0;
+		}
 		continue;
 invalid:
 		error("set : invalid option : '%s'",argv[i]);
 		return 1;
 	}
+static char *argv_array[256];
+
+	if (argc - i >= 256) {
+		i = argc - 256 + 1;
+	}
+	_argc = argc - i;
+	_argv = argv_array;
+	for (int j=0; i<argc; i++, j++) {
+		// FIXME:WE LEAK MEMORY
+		argv_array[j] = xstrdup(argv[i]);
+	}
+	argv_array[_argc] = NULL;
 	return 0;
 }
 

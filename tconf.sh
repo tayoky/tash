@@ -13,7 +13,7 @@ tconf_get_var () {
 }
 
 tconf_to_macro_name () {
-	echo "$@" | tr "a-z./ " "A-Z___"
+	echo "$@" | tr "a-z./ " "A-Z___" | tr -s _
 }
 
 tconf_to_file_name () {
@@ -32,17 +32,17 @@ generate config.mk from environement
 --strip=STRIP set the striper
 --nm=NM set the nm
 --pkgconfig=PKGCONFIG set the pkg-config
---cflags=CFLAGS set cutsom flags for C compilation
---cxxflags=CXXFLAGS set custom flags for C++ compilation
+--cflags=CFLAGS set cutsom flags for C compilation [$CFLAGS$OPT]
+--cxxflags=CXXFLAGS set custom flags for C++ compilation [$CXXFLAGS$OPT]
 --arflags=ASFLAGS set the flags for assembling
 --asflags=ARFLAGS set the flags for archiving
 --ldflags=LDFLAGS set the flags for linking
 --host=HOST set the host os, can be used for cross compiling
 --build=BUILD set the build os, can be set if tconf cannot determinate the build os
 --clear-cache clear the cache before doing anything
---prefix=PREFIX set the prefix
---sysroot=SYSROOT, --with-sysroot=SYSROOT set the sysroot
---debug compile with debug options actived
+--prefix=PREFIX set the prefix [$PREFIX]
+--sysroot=SYSROOT, --with-sysroot=SYSROOT set the sysroot [${SYSROOT:-"/"}]
+--debug compile with debug options activated [$DEBUG]
 --enable-XXX compile with a specific feature enabled
 --disable-XXX compile with a specific feature disabled
 --help show this help and exit"
@@ -146,8 +146,8 @@ tconf_init () {
 	done
 
 	# make path absolute
-	test -n "$PREFIX" && PREFIX="$(realpath "$PREFIX")"
-	test -n "$SYSROOT" && SYSROOT="$(realpath "$SYSROOT")"
+	test -n "$PREFIX" && PREFIX="$(realpath -m "$PREFIX")"
+	test -n "$SYSROOT" && SYSROOT="$(realpath -m "$SYSROOT")"
 	
 	return 0
 }
@@ -186,6 +186,7 @@ tconf_fini () {
 		tconf_echo_conf LDFLAGS "$LDFLAGS"
 		tconf_echo_conf HOST "$HOST"
 		tconf_echo_conf ARCH "$ARCH"
+		tconf_echo_conf DEBUG "$DEBUG"
 	} > "$TOP/config.mk"
 	return 0
 }
@@ -196,16 +197,19 @@ tconf_add_subdir () {
 		return 1
 	fi
 	export CC CXX AS AR LD NM
-	export READELF OBJCOPY STRIP
+	export READELF OBJCOPY STRIP PKGCONFIG
 	export CFLAGS CXXFLAGS ASFLAGS
 	export ARFLAGS LDFLAGS OPT
 	export HOST BUILD TARGET
-	export PREFIX DEBUG
+	export PREFIX SYSROOT DEBUG
 	SUBDIR="$1"
 	shift
 	tconf_print "entering subdir $SUBDIR"
 	(cd "$SUBDIR" && ./configure "$@")
+	CODE=$?
 	tconf_print "exiting subdir $SUBDIR"
+	test "$CODE" != 0 && exit $CODE
+	return 0
 }
 
 tconf_require () {
@@ -237,7 +241,7 @@ tconf_check_code () {
 	fi
 
 	echo "$3" > "$FILE"
-	if env "CFLAGS=$CFLAGS $4" $1 "$FILE" -o "$FILE.out" >/dev/null 2>/dev/null ; then
+	if $1 $CFLAGS $4 "$FILE" -o "$FILE.out" >/dev/null 2>/dev/null ; then
 		tconf_print "yes"
 		return 0
 	else
@@ -253,7 +257,7 @@ tconf_check_code_define () {
 	fi
 
 	if tconf_check_code "$1" "$2" "$3" "$4" ; then
-		OPT="$OPT -DHAVE_$(tconf_to_macro_name "$2")=1"
+		OPT="$OPT -D$(tconf_to_macro_name "HAVE_$2")=1"
 	fi
 }
 
@@ -265,6 +269,19 @@ tconf_check_func () {
 	tconf_check_code_define "$1" "$3" "#include <$2>
 void *volatile ptr = (void*)$3;
 int main() {
+	return 0;
+}"
+}
+
+tconf_check_builtin () {
+	if [ $# != 3 ] ; then
+		tconf_print "usage : tconf_check_builtin CC BUILTIN PARAM"
+		return 1
+	fi
+	tconf_check_code_define "$1" "$2" "// include stddef to get NULL for some tests
+#include <stddef.h>
+int main() {
+	$2($3);
 	return 0;
 }"
 }
@@ -323,7 +340,8 @@ tconf_search_util () {
 	fi
 
 	UTIL_VAR="$1"
-	tconf_print -n "search $2... "
+	UTIL_NAME="$2"
+	tconf_print -n "search $UTIL_NAME... "
 
 	# test if aready set
 	if test -n "$UTIL_VAR" && test -n "$(tconf_get_var $UTIL_VAR)" ; then
@@ -344,7 +362,8 @@ tconf_search_util () {
 		fi
 	done
 	tconf_print "no"
-	return 1
+	tconf_print "no $UTIL_NAME found"
+	exit 1
 }
 
 tconf_search_cc () {
@@ -360,7 +379,7 @@ tconf_search_cxx () {
 		tconf_print "usage : tconf_search_cxx PREFIX"
 		return 1
 	fi
-	tconf_search_util CXX "C++ compiler" "$1" g++ c++ gpp cxx
+	tconf_search_util CXX "C++ compiler" "$1" g++ clang++ c++ gpp cxx
 }
 
 tconf_search_as () {

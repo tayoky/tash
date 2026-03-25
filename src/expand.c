@@ -101,6 +101,7 @@ static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
 static int remove_prefix_suffix(vector_t *dest, int in_quote, const char *value, const char *pattern, int op, int remove_largest) {
 	const char *start = value;
 	const char *end   = value + strlen(value);
+	size_t len = end - start;
 	if (op == '%') {
 		if (remove_largest) {
 			for (const char *cur=value; *cur; cur++) {
@@ -118,7 +119,18 @@ static int remove_prefix_suffix(vector_t *dest, int in_quote, const char *value,
 			}
 		}
 	} else {
-		// TODO : handle prefix
+		char *dup = xstrdup(value);
+		if (remove_largest) {
+			for (size_t cur=len; cur>0; cur--) {
+				dup[cur] = '\0';
+				if (glob_match(pattern, dup)) {
+					start += cur;
+					break;
+				}
+			}
+		} else {
+		}
+		xfree(dup);
 	}
 
 	size_t size = end - start;
@@ -290,13 +302,14 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 					src++;
 				}
 
-				// we must ecpand first the word given after the operand
+				// we must ecpand first the pattern given after the operand
 				const char *end;
-				char *word = expand_string_ctl(src, 1, &end);
+				char *pattern = expand_string_ctl(src, 1, &end);
 				src = end;
-				if (!word) goto error;
-				remove_prefix_suffix(dest, in_quote, value, word, has_op, remove_largest);
+				if (!pattern) goto error;
+				remove_prefix_suffix(dest, in_quote, value, pattern, has_op, remove_largest);
 				already_handled = 1;
+				xfree(pattern);
 			} else {
 				int is_unset = !value;
 				if (*src == ':') {

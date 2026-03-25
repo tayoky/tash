@@ -200,15 +200,28 @@ static node_t *parse_for(source_t *src) {
 			destroy_token(token);
 			token = next_token(src);
 		}
+		if (token->type != T_SEMI_COLON && token->type != T_NEWLINE) {
+			syntax_error("unexpected token '%s' (expected ';' or '<newline>')", token_name(token));
+			destroy_token(token);
+			goto error;
+		}
+		destroy_token(token);
 	} else {
 		token = in;
+		// we still need to allow a newline/semicolon
+		if (token->type == T_SEMI_COLON || token->type == T_NEWLINE) {
+			destroy_token(token);
+		} else {
+			unget_token(src, token);
+		}
+
+		// by default we use "$@"
+		word_t word = {
+			.flags = WORD_HAS_QUOTE,
+			.text = xstrdup((char[]){CTLQUOT, '$', '@', CTLQUOT, '\0'}),
+		};
+		vector_push_back(&words, &word);
 	}
-	if (token->type != T_SEMI_COLON && token->type != T_NEWLINE) {
-		syntax_error("unexpected token '%s' (expected ';' or '<newline>')", token_name(token));
-		destroy_token(token);
-		goto error;
-	}
-	destroy_token(token);
 
 	// we need a do
 	if (expect_token(src, T_DO) < 0) goto error;

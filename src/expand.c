@@ -98,6 +98,73 @@ static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
 #endif
 }
 
+static int remove_prefix_suffix(vector_t *dest, int in_quote, const char *value, const char *pattern, int op, int remove_largest) {
+	const char *start = value;
+	const char *end   = value + strlen(value);
+	if (op == '%') {
+		if (remove_largest) {
+			for (const char *cur=value; *cur; cur++) {
+				if (glob_match(pattern, cur)) {
+					end = cur;
+					break;
+				}
+			}
+		} else {
+			for (const char *cur=end-1; cur>=start; cur--) {
+				if (glob_match(pattern, cur)) {
+					end = cur;
+					break;
+				}
+			}
+		}
+	} else {
+		// TODO : handle prefix
+	}
+
+	size_t size = end - start;
+	append_safe_len(dest, start, size, in_quote);
+	return 1;
+}
+
+
+#define ALREADY_HANDLED  1
+#define UNSET_VARIABLE   2
+#define REFRESH_VARIABLE 3
+static int handle_unset_action(vector_t *dest, int in_quote, char *word, const char *var, int op, int is_unset) {
+	switch (op) {
+	case '-':
+		if (is_unset) {
+			vector_push_multiple_back(dest, word, strlen(word));
+			return ALREADY_HANDLED;
+		}
+		break;
+	case '=':
+		if (is_unset) {
+			remove_ctlesc(word);
+			putvar(var, word);
+			const char *value = getvar(var);
+			append_safe(dest, value, in_quote);
+			return ALREADY_HANDLED;
+		}
+		break;
+	case '?':
+		if (is_unset) {
+			if (!*word) return UNSET_VARIABLE;
+			remove_ctlesc(word);
+			error("%s", word);
+			return -1;
+		}
+		break;
+	case '+':
+		if (!is_unset) {
+			vector_push_multiple_back(dest, word, strlen(word));
+			return ALREADY_HANDLED;
+		}
+		break;
+	}
+	return 0;
+}
+
 static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	const char *src = *ptr;
 	if (*src == '(') {
@@ -214,71 +281,63 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	if (has_braces) {
 		src++;
 		if (!has_op) {
-			int is_unset = !value;
-			if (*src == ':') {
-				has_op = ':';
-				src++;
-
-				// the ":" prefix mean "handle empty like it's unset"
-				if (value && !value[0]) {
-					is_unset = 1;
-				}
-			}
-			if (*src == '-' || *src == '=' || *src == '?' || *src == '+') {
+			if (*src == '#' || *src == '%') {
 				has_op = *src;
 				src++;
+				int remove_largest = 0;
+				if (*src == has_op) {
+					remove_largest = 1;
+					src++;
+				}
 
 				// we must ecpand first the word given after the operand
 				const char *end;
 				char *word = expand_string_ctl(src, 1, &end);
-				if (!word) return -1;
 				src = end;
-				if (*src != '}') {
+				if (!word) goto error;
+				remove_prefix_suffix(dest, in_quote, value, word, has_op, remove_largest);
+				already_handled = 1;
+			} else {
+				int is_unset = !value;
+				if (*src == ':') {
+					has_op = ':';
+					src++;
+
+					// the ":" prefix mean "handle empty like it's unset"
+					if (value && !value[0]) {
+						is_unset = 1;
+					}
+				}
+				if (*src == '-' || *src == '=' || *src == '?' || *src == '+') {
+					has_op = *src;
+					src++;
+	
+					// we must expand first the word given after the operand
+					const char *end;
+					char *word = expand_string_ctl(src, 1, &end);
+					if (!word) goto error;
+					src = end;
+					if (*src != '}') {
+						xfree(word);
+						goto bad_substitution;
+					}
+					int ret = handle_unset_action(dest, in_quote, word, var, has_op, is_unset);
 					xfree(word);
+					if (ret < 0) goto error;
+					if (ret == ALREADY_HANDLED) already_handled = 1;
+					if (ret == UNSET_VARIABLE) goto unset_variable;
+				} else if (has_op == ':') {
+					// we must have something after a ":"
+					xfree(var);
 					goto bad_substitution;
 				}
-				switch (has_op) {
-				case '-':
-					if (is_unset) {
-						vector_push_multiple_back(dest, word, strlen(word));
-						already_handled = 1;
-					}
-					break;
-				case '=':
-					if (is_unset) {
-						remove_ctlesc(word);
-						putvar(var, word);
-						value = getvar(var);
-					}
-					break;
-				case '?':
-					if (is_unset) {
-						if (!*word) goto unset_variable;
-						remove_ctlesc(word);
-						error("%s", word);
-						xfree(word);
-						xfree(var);
-						return -1;
-					}
-					break;
-				case '+':
-					if (!is_unset) {
-						vector_push_multiple_back(dest, word, strlen(word));
-						already_handled = 1;
-					}
-					break;
-				}
-				xfree(word);
-			} else if (has_op == ':') {
-				// we must have something after a ":"
-				xfree(var);
-				goto bad_substitution;
 			}
 		}
 		if (*src != '}') {
-bad_substitution:
-			xfree(var);
+		bad_substitution:
 			error("bad substitution");
+		error:
+			xfree(var);
 			return -1;
 		}
 	}

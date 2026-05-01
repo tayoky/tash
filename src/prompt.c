@@ -4,6 +4,7 @@
 #include <termios.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #ifdef WCHAR_SUPPORT
 #include <wchar.h>
 #endif

@@ -86,21 +86,27 @@ static void show_prompt(const char *ps){
 			printf("%d:%d:%d",tm.tm_hour > 13?tm.tm_hour%12:tm.tm_hour,tm.tm_min,tm.tm_sec);
 			break;
 		case '@':
-			fputs(tm.tm_hour > 12 ? "pm" : "am",stdout);
+			fputs(tm.tm_hour > 12 ? "pm" : "am", stdout);
 			break;
 		case 'A':
-			printf("%d:%d",tm.tm_hour,tm.tm_min);
+			printf("%d:%d", tm.tm_hour, tm.tm_min);
 			break;
 		case 'V':
 		case 'v':
-			fputs(TASH_VERSION,stdout);
+			fputs(TASH_VERSION, stdout);
 			break;
 		case 'W':
 		case 'w':
 			show_cwd();
 			break;
-		case 'h':
+		case 'h':;
+#ifdef HAVE_GETHOSTNAME
+			char host[HOST_NAME_MAX];
+			gethostname(host, sizeof(host));
+			fputs(host, stdout);
+#else
 			printf("host");
+#endif
 			break;
 		case 'u':
 			if(getenv("LOGNAME"))printf("%s",getenv("LOGNAME"));

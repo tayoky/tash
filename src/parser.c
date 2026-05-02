@@ -1026,7 +1026,9 @@ int interpret(source_t *src) {
 				exit_status = 1;
 				// if interactive do not exit
 				if (flags & TASH_INTERACTIVE) {
-					// TODO : flush input or something
+					// discard the whole line
+					// for error recovery
+					discard_line(src);
 					continue;
 				}
 				return exit_status;

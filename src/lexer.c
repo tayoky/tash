@@ -406,3 +406,9 @@ void destroy_token(token_t *token) {
 	xfree(token->value);
 	xfree(token);
 }
+
+void discard_line(source_t *src) {
+	destroy_token(src->lexer.putback);
+	src->lexer.putback = NULL;
+	while (get_char(src) != '\n');
+}

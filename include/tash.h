@@ -216,6 +216,7 @@ void destroy_token(token_t *token);
 const char *token_name(token_t *token);
 size_t token_len(token_t *token);
 int token_is_word(token_t *token);
+void discard_line(source_t *src);
 
 int try_builtin(int argc, char **argv);
 

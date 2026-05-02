@@ -403,6 +403,7 @@ static builtin_t builtin[] = {
 	CMD("set"     ,builtin_set),
 	CMD("echo"    ,builtin_echo),
 	CMD("eval"    ,builtin_eval),
+	CMD(":"       ,builtin_true),
 	CMD("true"    ,builtin_true),
 	CMD("false"   ,builtin_false),
 	CMD("break"   ,builtin_break),

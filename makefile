@@ -31,11 +31,11 @@ $(BUILDDIR)/%.o : $(SRCDIR)/%.c
 
 install : all
 	@echo '[installing tash]'
-	@mkdir -p $(PREFIX)/bin
-	@cp $(BUILDDIR)/tash $(PREFIX)/bin/tash
+	@mkdir -p $(DESTDIR)$(PREFIX)/bin
+	@cp $(BUILDDIR)/tash $(DESTDIR)$(PREFIX)/bin/tash
 
 uninstall :
-	rm -f $(PREFIX)/bin/tash
+	rm -f $(DESTDIR)$(PREFIX)/bin/tash
 
 clean :
 	rm -fr build

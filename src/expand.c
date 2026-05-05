@@ -385,6 +385,27 @@ unset_variable:
 	return 0;
 }
 
+static int handle_backtick(vector_t *dest, const char **ptr, int in_quote) {
+	// we got a subshell with backtick
+	(*ptr)++;
+	// TODO : use a custom search not strchr
+	const char *end = strchr(*ptr, '`');
+	char *buf = xstrndup(*ptr, end - *ptr);
+	const char *found_end;
+	node_t *node = parse_list_buf(buf, &found_end);
+	xfree(buf);
+	if (!node) return -1;
+	if (*found_end != '\0') {
+		error("bad backtick expansion");	
+		free_node(node);
+		return -1;
+	}
+	*ptr = end;
+	int ret = execute_subshell(dest, in_quote, node);
+	free_node(node);
+	return ret;
+}
+
 /**
  * @brief handle parameter, braces and tilde expansion
  * @param dest the destination vector/string
@@ -423,6 +444,8 @@ static int first_expansion(vector_t *dest, const char *src, int braces_stop, con
 			APPEND('\0');
 			if (end) *end = src;
 			return 0;
+		} else if (*src == '`') {
+			if (handle_backtick(dest, &src, in_quote) < 0) return -1;
 		} else {
 			vector_push_back(dest, src);
 		}

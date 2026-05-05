@@ -1,0 +1,3 @@
+# test backtick
+
+echo `ls`

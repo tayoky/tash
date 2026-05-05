@@ -233,6 +233,15 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			if (c == EOF) return;
 			get_word_helper(src, buf, flags, c, ')', 1);
 			break;
+		case '`':
+			// consume the '`'
+			APPEND(c);
+
+			// prepare next char
+			c = get_char(src);
+			if (c == EOF) return;
+			get_word_helper(src, buf, flags, c, '`', 1);
+			break;
 		case CTLESC:
 		case CTLQUOT:
 			if (!is_subshell) APPEND(CTLESC);

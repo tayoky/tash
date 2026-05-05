@@ -1,3 +1,3 @@
 # test backtick
 
-echo `ls`
+echo `ls ..`

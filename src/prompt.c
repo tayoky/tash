@@ -94,7 +94,7 @@ static void show_prompt(const char *ps){
 			break;
 		case 'V':
 		case 'v':
-			fputs(TASH_VERSION, stdout);
+			fputs(VERSION, stdout);
 			break;
 		case 'W':
 		case 'w':

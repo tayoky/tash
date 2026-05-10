@@ -1,0 +1,11 @@
+#!/bin/sh
+
+. ./tmake.sh
+
+NAME="tash"
+tmake_init "$@"
+
+tmake_add_executable "tash" src/*.c CFLAGS="-Iinclude --std=c99 -D_POSIX_C_SOURCE=200809L"
+
+
+tmake_fini

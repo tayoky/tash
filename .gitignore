@@ -1,5 +1,6 @@
 build
 tconf
+Makefile
 config.mk
 *.txt
 *.out

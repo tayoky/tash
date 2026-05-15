@@ -6,7 +6,7 @@
 #include <tash.h>
 
 int glob_match(const char *glob, const char *str) {
-	const char *str_start  = NULL;
+	const char *str_start = NULL;
 	const char *glob_start = NULL;
 
 	while (*glob || *str) {
@@ -24,7 +24,7 @@ int glob_match(const char *glob, const char *str) {
 			// try to find the seach
 			// if not found retry one char later
 			glob_start = glob;
-			str_start  = str;
+			str_start = str;
 			glob++;
 			continue;
 		case CTLQUOT:
@@ -33,7 +33,7 @@ int glob_match(const char *glob, const char *str) {
 			glob++;
 			// fallthrough
 		default:
-			if (*str == *glob){
+			if (*str == *glob) {
 				str++;
 				glob++;
 				continue;
@@ -42,7 +42,7 @@ int glob_match(const char *glob, const char *str) {
 		}
 		if (str_start && *str_start) {
 			glob = glob_start;
-			str  = ++str_start;
+			str = ++str_start;
 			continue;
 		}
 		return 0;
@@ -67,14 +67,14 @@ static void glob_file_recur(vector_t *found, vector_t *prefix, const char *glob)
 			} else {
 				glob_start = glob + 1;
 			}
-		} else if(*glob == CTLESC) {
+		} else if (*glob == CTLESC) {
 			if (glob[1] == '*' || glob[1] == '?') glob++;
 		} else if (*glob == '*' || *glob == '?') {
 			// we found a component with a *
 			found_wildcard = 1;
 		}
 	}
-	
+
 	if (!found_wildcard) glob_start = glob;
 
 	// make the full prefix
@@ -101,7 +101,7 @@ static void glob_file_recur(vector_t *found, vector_t *prefix, const char *glob)
 
 	vector_push_back(prefix, (char[]){'\0'});
 	// if we have a null prefix we need to open cwd
-	DIR *dir = opendir(*(char*)prefix->data ? prefix->data : ".");
+	DIR *dir = opendir(*(char *)prefix->data ? prefix->data : ".");
 	prefix->count--;
 	if (!dir) {
 		xfree(globing);
@@ -134,12 +134,12 @@ char **glob_files(const char *glob) {
 	vector_t prefix = {0};
 	init_vector(&prefix, sizeof(char));
 	vector_t found = {0};
-	init_vector(&found, sizeof(char*));
+	init_vector(&found, sizeof(char *));
 
 	glob_file_recur(&found, &prefix, glob);
 
 	free_vector(&prefix);
-	vector_push_back(&found, (char*[]){NULL});
+	vector_push_back(&found, (char *[]){NULL});
 	return found.data;
 }
 

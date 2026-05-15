@@ -1,5 +1,5 @@
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <vector.h>
@@ -22,7 +22,7 @@ static node_t *new_node(int type) {
 }
 
 static void free_words(word_t *words, size_t count) {
-	for (size_t i=0; i<count; i++) {
+	for (size_t i = 0; i < count; i++) {
 		xfree(words[i].text);
 	}
 	xfree(words);
@@ -32,14 +32,14 @@ static void free_word(word_t *word) {
 }
 
 static void free_redirs(redir_t *redirs, size_t count) {
-	for (size_t i=0; i<count; i++) {
+	for (size_t i = 0; i < count; i++) {
 		free_word(&redirs[i].dest);
 	}
 	xfree(redirs);
 }
 
 static void free_assigns(assign_t *assigns, size_t count) {
-	for (size_t i=0; i<count; i++) {
+	for (size_t i = 0; i < count; i++) {
 		free_word(&assigns[i].value);
 		xfree(assigns[i].var);
 	}
@@ -47,7 +47,7 @@ static void free_assigns(assign_t *assigns, size_t count) {
 }
 
 static void free_cases(case_t *cases, size_t count) {
-	for (size_t i=0; i<count; i++) {
+	for (size_t i = 0; i < count; i++) {
 		free_words(cases[i].patterns, cases[i].patterns_count);
 		free_node(cases[i].body);
 	}
@@ -103,7 +103,7 @@ void free_node(node_t *node) {
 }
 
 static void word_from_token(token_t *token, word_t *word) {
-	word->text  = xstrdup(token->value);
+	word->text = xstrdup(token->value);
 	word->flags = token->flags;
 }
 
@@ -158,14 +158,14 @@ static node_t *parse_loop(source_t *src, int type) {
 	if (expect_token(src, T_DO) < 0) goto error;
 
 	body = must_parse_list(src, 1);
-	if (!body) goto error;	
+	if (!body) goto error;
 
 	// we need a done
 	if (expect_token(src, T_DONE) < 0) goto error;
 
 	node_t *node = new_node(type);
 	node->loop.condition = condition;
-	node->loop.body      = body;
+	node->loop.body = body;
 	return node;
 
 error:
@@ -176,7 +176,7 @@ error:
 }
 
 static node_t *parse_for(source_t *src) {
-	// we already parsed the for keyword	
+	// we already parsed the for keyword
 	node_t *body = NULL;
 	vector_t words = {0};
 	token_t *name = next_token(src);
@@ -233,9 +233,9 @@ static node_t *parse_for(source_t *src) {
 	if (expect_token(src, T_DONE) < 0) goto error;
 
 	node_t *node = new_node(NODE_FOR);
-	node->for_loop.words       = words.data;
+	node->for_loop.words = words.data;
 	node->for_loop.words_count = words.count;
-	node->for_loop.body        = body;
+	node->for_loop.body = body;
 	word_from_token(name, &node->for_loop.var_name);
 	destroy_token(name);
 	return node;
@@ -267,7 +267,7 @@ static node_t *parse_case(source_t *src) {
 
 	for (;;) {
 		token_t *token = skip_newlines(src);
-	
+
 		// optional ( at the start
 		if (token->type == T_OPEN_PAREN) {
 			destroy_token(token);
@@ -307,8 +307,7 @@ static node_t *parse_case(source_t *src) {
 		case_t _case = {
 			.patterns = xmalloc(sizeof(word_t) * patterns.count),
 			.patterns_count = patterns.count,
-			.body = body
-		};
+			.body = body};
 		memcpy(_case.patterns, patterns.data, sizeof(word_t) * patterns.count);
 		vector_push_back(&cases, &_case);
 		patterns.count = 0;
@@ -326,7 +325,7 @@ static node_t *parse_case(source_t *src) {
 
 	free_vector(&patterns);
 	node_t *node = new_node(NODE_CASE);
-	node->_case.cases       = cases.data;
+	node->_case.cases = cases.data;
 	node->_case.cases_count = cases.count;
 	word_from_token(word, &node->_case.word);
 	destroy_token(word);
@@ -342,9 +341,9 @@ error:
 // FIXME : rewrite this to avoid recursivity
 static node_t *parse_if(source_t *src) {
 	// we already parsed the if
-	node_t *condition   = must_parse_list(src, 1);
-	node_t *body        = NULL;
-	node_t *else_body   = NULL;
+	node_t *condition = must_parse_list(src, 1);
+	node_t *body = NULL;
+	node_t *else_body = NULL;
 	node_t *lowest_node = NULL;
 	if (!condition) return NULL;
 
@@ -376,7 +375,7 @@ static node_t *parse_if(source_t *src) {
 
 		node_t *elif = new_node(NODE_IF);
 		elif->_if.condition = elif_condition;
-		elif->_if.body      = elif_body;
+		elif->_if.body = elif_body;
 		if (lowest_node) {
 			lowest_node->_if.else_body = elif;
 		} else {
@@ -401,11 +400,11 @@ static node_t *parse_if(source_t *src) {
 	}
 
 	// we need a fi
-	if (expect_token(src, T_FI) < 0) goto error;	
+	if (expect_token(src, T_FI) < 0) goto error;
 
 	node_t *node = new_node(NODE_IF);
 	node->_if.condition = condition;
-	node->_if.body      = body;
+	node->_if.body = body;
 	node->_if.else_body = else_body;
 	return node;
 
@@ -429,7 +428,7 @@ static node_t *parse_subshell(source_t *src) {
 		parser_error = 1;
 		return NULL;
 	}
-	
+
 	node_t *node = new_node(NODE_SUBSHELL);
 	node->single.child = content;
 	return node;
@@ -447,7 +446,7 @@ static node_t *parse_group(source_t *src) {
 		parser_error = 1;
 		return NULL;
 	}
-	
+
 	node_t *node = new_node(NODE_GROUP);
 	node->single.child = content;
 	return node;
@@ -488,7 +487,7 @@ static int parse_redir(source_t *src, token_t *first, redir_t *redir) {
 	return 0;
 }
 
-static int is_valid_name_char (char c) {
+static int is_valid_name_char(char c) {
 	return isalnum(c) || c == '_' || c == '-';
 }
 
@@ -513,10 +512,10 @@ static int parse_assignement(token_t *token, assign_t *assign) {
 		if (!isalnum(*ptr) && *ptr != '_') return -1;
 		ptr++;
 	}
-	
+
 	assign->var = xstrndup(token->value, equal - token->value);
 	assign->value.flags = token->flags;
-	assign->value.text  = xstrdup(equal + 1);
+	assign->value.text = xstrdup(equal + 1);
 	return 0;
 }
 
@@ -525,10 +524,10 @@ static node_t *parse_simple_command(source_t *src, token_t *token) {
 	word_t word;
 	redir_t redir;
 	assign_t assign;
-	vector_t args   = {0};
+	vector_t args = {0};
 	vector_t redirs = {0};
 	vector_t assigns = {0};
-	init_vector(&args  , sizeof(word_t));
+	init_vector(&args, sizeof(word_t));
 	init_vector(&redirs, sizeof(redir_t));
 	init_vector(&assigns, sizeof(assign_t));
 
@@ -542,11 +541,11 @@ static node_t *parse_simple_command(source_t *src, token_t *token) {
 		if (token_is_word(token)) {
 			word_from_token(token, &word);
 			vector_push_back(&args, &word);
-		} else if(token->type == T_DUP_IN
-			|| token->type == T_DUP_OUT
-			|| token->type == T_INFERIOR
-			|| token->type == T_SUPERIOR
-			|| token->type == T_APPEND) {
+		} else if (token->type == T_DUP_IN
+				   || token->type == T_DUP_OUT
+				   || token->type == T_INFERIOR
+				   || token->type == T_SUPERIOR
+				   || token->type == T_APPEND) {
 			if (parse_redir(src, token, &redir) < 0) goto error;
 			vector_push_back(&redirs, &redir);
 		} else {
@@ -559,14 +558,14 @@ static node_t *parse_simple_command(source_t *src, token_t *token) {
 	unget_token(src, token);
 
 	// we reached the end of the simple command
-	
+
 	node_t *node = new_node(NODE_CMD);
-	node->cmd.args          = args.data;
-	node->cmd.args_count    = args.count;
-	node->cmd.assigns       = assigns.data;	
+	node->cmd.args = args.data;
+	node->cmd.args_count = args.count;
+	node->cmd.assigns = assigns.data;
 	node->cmd.assigns_count = assigns.count;
-	node->redirs            = redirs.data;
-	node->redirs_count      = redirs.count;
+	node->redirs = redirs.data;
+	node->redirs_count = redirs.count;
 	return node;
 
 error:
@@ -659,18 +658,18 @@ static node_t *parse_compound_command(source_t *src) {
 
 	token = next_token(src);
 	while (token->type == T_DUP_IN
-		|| token->type == T_DUP_OUT
-		|| token->type == T_INFERIOR
-		|| token->type == T_SUPERIOR
-		|| token->type == T_APPEND) {
+		   || token->type == T_DUP_OUT
+		   || token->type == T_INFERIOR
+		   || token->type == T_SUPERIOR
+		   || token->type == T_APPEND) {
 		if (parse_redir(src, token, &redir) < 0) goto error;
 		vector_push_back(&redirs, &redir);
 		destroy_token(token);
 		token = next_token(src);
 	}
 	unget_token(src, token);
-	node->redirs            = redirs.data;
-	node->redirs_count      = redirs.count;
+	node->redirs = redirs.data;
+	node->redirs_count = redirs.count;
 	return node;
 error:
 	parser_error = 1;
@@ -687,7 +686,7 @@ static node_t *parse_command(source_t *src) {
 	token_t *token = skip_newlines(src);
 
 	prompt = 2;
-	
+
 	switch (token->type) {
 	case T_WORD:;
 		// do we have a func declaration ?
@@ -737,7 +736,7 @@ static node_t *parse_simple_pipeline(source_t *src) {
 	}
 
 	node_t *node = new_node(NODE_PIPE);
-	node->binary.left  = left_cmd;
+	node->binary.left = left_cmd;
 	node->binary.right = right_cmd;
 	return node;
 }
@@ -796,7 +795,7 @@ static node_t *parse_logic_list(source_t *src) {
 		}
 
 		node_t *op_node = new_node(token->type == T_AND ? NODE_AND : NODE_OR);
-		op_node->binary.left  = node;
+		op_node->binary.left = node;
 		op_node->binary.right = child;
 		node = op_node;
 		destroy_token(token);
@@ -855,7 +854,7 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 		}
 
 		node_t *sep_node = new_node(NODE_SEP);
-		sep_node->binary.left  = node;
+		sep_node->binary.left = node;
 		sep_node->binary.right = child;
 		node = sep_node;
 	}
@@ -879,7 +878,7 @@ static node_t *parse_line(source_t *src) {
 
 #ifdef DEBUG
 static void print_depth(int depth) {
-	for (int i=0; i<depth; i++) {
+	for (int i = 0; i < depth; i++) {
 		fprintf(stderr, "  ");
 	}
 }
@@ -888,7 +887,7 @@ static void print_redirs(node_t *node, int depth) {
 	if (node->redirs_count == 0) return;
 	print_depth(depth);
 	fputs("redirs :\n", stderr);
-	for (size_t i=0; i<node->redirs_count; i++) {
+	for (size_t i = 0; i < node->redirs_count; i++) {
 		redir_t *redir = &node->redirs[i];
 		print_depth(depth + 1);
 		fprintf(stderr, "fd : %d dest : %s\n", redir->fd, redir->dest.text);
@@ -905,14 +904,14 @@ static void print_node(node_t *node, int depth) {
 	case NODE_CMD:
 		if (node->cmd.assigns_count) {
 			fputs("cmd assigns : \n", stderr);
-			for (size_t i=0; i<node->cmd.assigns_count; i++) {
+			for (size_t i = 0; i < node->cmd.assigns_count; i++) {
 				print_depth(depth + 1);
 				fprintf(stderr, "%s = %s\n", node->cmd.assigns[i].var, node->cmd.assigns[i].value.text);
 			}
 			print_depth(depth);
 		}
 		fputs("cmd args : \n", stderr);
-		for (size_t i=0; i<node->cmd.args_count; i++) {
+		for (size_t i = 0; i < node->cmd.args_count; i++) {
 			print_depth(depth + 1);
 			fprintf(stderr, "arg%zu : %s\n", i, node->cmd.args[i].text);
 		}
@@ -930,14 +929,14 @@ static void print_node(node_t *node, int depth) {
 		fputs("if\n", stderr);
 		print_depth(depth);
 		fputs("condition :\n", stderr);
-		print_node(node->_if.condition , depth + 1);
+		print_node(node->_if.condition, depth + 1);
 		print_depth(depth);
 		fputs("body :\n", stderr);
-		print_node(node->_if.body , depth + 1);
+		print_node(node->_if.body, depth + 1);
 		if (node->_if.else_body) {
 			print_depth(depth);
 			fputs("else body :\n", stderr);
-			print_node(node->_if.else_body , depth + 1);
+			print_node(node->_if.else_body, depth + 1);
 		}
 		break;
 	case NODE_WHILE:
@@ -946,17 +945,17 @@ static void print_node(node_t *node, int depth) {
 
 		print_depth(depth);
 		fputs("condition :\n", stderr);
-		print_node(node->loop.condition , depth + 1);
+		print_node(node->loop.condition, depth + 1);
 		print_depth(depth);
-		fputs("body :\n",stderr);
-		print_node(node->loop.body , depth + 1);
+		fputs("body :\n", stderr);
+		print_node(node->loop.body, depth + 1);
 		break;
 	case NODE_CASE:
 		fputs("case\n", stderr);
-		for (size_t i=0; i<node->_case.cases_count; i++) {
+		for (size_t i = 0; i < node->_case.cases_count; i++) {
 			print_depth(depth + 1);
 			fprintf(stderr, "case%zu :\n", i);
-			for (size_t j=0; j<node->_case.cases[i].patterns_count; j++) {
+			for (size_t j = 0; j < node->_case.cases[i].patterns_count; j++) {
 				print_depth(depth + 2);
 				fprintf(stderr, "pattern %s\n", node->_case.cases[i].patterns[j].text);
 			}
@@ -967,39 +966,39 @@ static void print_node(node_t *node, int depth) {
 		break;
 	case NODE_NEGATE:
 		fputs("negate\n", stderr);
-		print_node(node->single.child , depth + 1);
+		print_node(node->single.child, depth + 1);
 		break;
 	case NODE_SUBSHELL:
 		fputs("subshell\n", stderr);
-		print_node(node->single.child , depth + 1);
+		print_node(node->single.child, depth + 1);
 		break;
 	case NODE_GROUP:
 		fputs("group\n", stderr);
-		print_node(node->single.child , depth + 1);
+		print_node(node->single.child, depth + 1);
 		break;
 	case NODE_PIPE:
 		fputs("pipe\n", stderr);
-		print_node(node->binary.left , depth + 1);
+		print_node(node->binary.left, depth + 1);
 		print_node(node->binary.right, depth + 1);
 		break;
 	case NODE_OR:
 		fputs("or\n", stderr);
-		print_node(node->binary.left , depth + 1);
+		print_node(node->binary.left, depth + 1);
 		print_node(node->binary.right, depth + 1);
 		break;
 	case NODE_AND:
 		fputs("and\n", stderr);
-		print_node(node->binary.left , depth + 1);
+		print_node(node->binary.left, depth + 1);
 		print_node(node->binary.right, depth + 1);
 		break;
 	case NODE_SEP:
 		fputs("sep\n", stderr);
-		print_node(node->binary.left , depth + 1);
+		print_node(node->binary.left, depth + 1);
 		print_node(node->binary.right, depth + 1);
 		break;
 	case NODE_BG:
 		fputs("bg\n", stderr);
-		print_node(node->single.child , depth + 1);
+		print_node(node->single.child, depth + 1);
 		break;
 	case NODE_FUNC:
 		fputs("func\n", stderr);
@@ -1070,11 +1069,11 @@ static int buf_getc(void *data) {
 int eval(const char *str) {
 	buf_t buf = {
 		.size = strlen(str),
-		.data = (void*)str,
+		.data = (void *)str,
 	};
 	source_t src = {
-		.get_char   = buf_getc,
-		.data       = &buf,
+		.get_char = buf_getc,
+		.data = &buf,
 		.unget = EOF,
 	};
 	return interpret(&src);
@@ -1083,11 +1082,11 @@ int eval(const char *str) {
 node_t *parse_list_buf(const char *str, const char **end) {
 	buf_t buf = {
 		.size = strlen(str),
-		.data = (void*)str,
+		.data = (void *)str,
 	};
 	source_t src = {
-		.get_char   = buf_getc,
-		.data       = &buf,
+		.get_char = buf_getc,
+		.data = &buf,
 		.unget = EOF,
 	};
 	node_t *node = must_parse_list(&src, 1);
@@ -1127,11 +1126,11 @@ int eval_script(const char *pathname) {
 		}
 	}
 	source_t src = {
-		.data = (void*)(uintptr_t)fd,
+		.data = (void *)(uintptr_t)fd,
 		.get_char = script_getc,
 		.unget = EOF,
 	};
-	interpret(&src);	
+	interpret(&src);
 	if (fd != STDIN_FILENO) close(fd);
 	return exit_status;
 }
@@ -1153,7 +1152,7 @@ int eval_script(const char *pathname) {
 		}
 	}
 	source_t src = {
-		.data = (void*)file,
+		.data = (void *)file,
 		.get_char = script_getc,
 		.unget = EOF,
 	};
@@ -1164,7 +1163,7 @@ int eval_script(const char *pathname) {
 	setvbuf(file, NULL, _IONBF, 0);
 #endif
 
-	interpret(&src);	
+	interpret(&src);
 	if (file != stdin) fclose(file);
 	return exit_status;
 }

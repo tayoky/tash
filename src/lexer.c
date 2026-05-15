@@ -1,8 +1,8 @@
-#include <string.h>
-#include <stdlib.h>
 #include <ctype.h>
-#include <vector.h>
+#include <stdlib.h>
+#include <string.h>
 #include <tash.h>
+#include <vector.h>
 
 int get_char(source_t *src) {
 	if (src->eof) return EOF;
@@ -138,7 +138,7 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 				if (!is_subshell) APPEND(CTLESC);
 				APPEND(c);
 				break;
-			} 
+			}
 			quote = quote == '\'' ? 0 : '\'';
 			if (is_subshell) {
 				APPEND('\'');
@@ -254,7 +254,6 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 		c = get_char(src);
 		if (c == EOF) return;
 	}
-
 }
 
 void unget_token(source_t *src, token_t *token) {
@@ -268,10 +267,10 @@ token_t *next_token(source_t *src) {
 		return token;
 	}
 	token_t *token = xmalloc(sizeof(token_t));
-	token->value   = NULL;
-	token->type    = T_NULL;
-	token->digit   = -1;
-	token->flags   = 0;
+	token->value = NULL;
+	token->type = T_NULL;
+	token->digit = -1;
+	token->flags = 0;
 
 	// skip spaces
 	int c = get_char(src);
@@ -353,7 +352,7 @@ token_t *next_token(source_t *src) {
 		if (c2 == '\n') get_char(src);
 		token->type = T_NEWLINE;
 		return token;
-	// TODO : do more
+		// TODO : do more
 	}
 
 	// we have a word

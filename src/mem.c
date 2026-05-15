@@ -11,8 +11,8 @@ void xmem_reset(void) {
 	allocs_count = 0;
 }
 #else
-void xmem_stat(void) {}
-void xmem_reset(void) {}
+void xmem_stat(void) { }
+void xmem_reset(void) { }
 #endif
 
 void *xmalloc(size_t size) {

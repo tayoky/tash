@@ -1,6 +1,6 @@
 #include <ctype.h>
-#include <vector.h>
 #include <tash.h>
+#include <vector.h>
 
 // do word expansion
 
@@ -47,7 +47,7 @@ static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
 		perror("pipe");
 		return -1;
 	}
-	
+
 	group_t group;
 	job_init_group(&group);
 	if (job_fork(&group)) {
@@ -60,7 +60,7 @@ static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
 		size_t nl_count = 0;
 		while ((r = read(pipefd[0], buf, sizeof(buf))) > 0) {
 			// we need to bring back newlines we have stripped before
-			for (size_t i=0; i<nl_count; i++) {
+			for (size_t i = 0; i < nl_count; i++) {
 				append_safe(dest, "\n", in_quote);
 			}
 
@@ -100,18 +100,18 @@ static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
 
 static int remove_prefix_suffix(vector_t *dest, int in_quote, const char *value, const char *pattern, int op, int remove_largest) {
 	const char *start = value;
-	const char *end   = value + strlen(value);
+	const char *end = value + strlen(value);
 	size_t len = end - start;
 	if (op == '%') {
 		if (remove_largest) {
-			for (const char *cur=value; *cur; cur++) {
+			for (const char *cur = value; *cur; cur++) {
 				if (glob_match(pattern, cur)) {
 					end = cur;
 					break;
 				}
 			}
 		} else {
-			for (const char *cur=end; cur>=start; cur--) {
+			for (const char *cur = end; cur >= start; cur--) {
 				if (glob_match(pattern, cur)) {
 					end = cur;
 					break;
@@ -121,7 +121,7 @@ static int remove_prefix_suffix(vector_t *dest, int in_quote, const char *value,
 	} else {
 		char *dup = xstrdup(value);
 		if (remove_largest) {
-			for (size_t cur=len; cur>0; cur--) {
+			for (size_t cur = len; cur > 0; cur--) {
 				dup[cur] = '\0';
 				if (glob_match(pattern, dup)) {
 					start += cur;
@@ -130,7 +130,7 @@ static int remove_prefix_suffix(vector_t *dest, int in_quote, const char *value,
 			}
 		} else {
 			size_t best = 0;
-			for (size_t cur=len;; cur--) {
+			for (size_t cur = len;; cur--) {
 				dup[cur] = '\0';
 				if (glob_match(pattern, dup)) {
 					best = cur;
@@ -195,7 +195,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		node_t *node = parse_list_buf(src, &end);
 		if (!node) return -1;
 		if (*end != ')') {
-			error("bad substitution : %.*s", (int)(end - src + 2), src - 2);	
+			error("bad substitution : %.*s", (int)(end - src + 2), src - 2);
 			free_node(node);
 			return -1;
 		}
@@ -246,7 +246,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 			break;
 		}
 
-		for (int i=0; i<_argc; i++) {
+		for (int i = 0; i < _argc; i++) {
 			append_safe(dest, _argv[i], in_quote);
 			if (i != _argc - 1) {
 				// do not CTLESC it
@@ -258,7 +258,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		already_handled = 1;
 		break;
 	case '*':
-		for (int i=0; i<_argc; i++) {
+		for (int i = 0; i < _argc; i++) {
 			append_safe(dest, _argv[i], in_quote);
 			if (i != _argc - 1) {
 				if (in_quote) APPEND(CTLESC);
@@ -270,12 +270,20 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 	case '0':
 		value = _argv0;
 		break;
-	case '1': case '2': case '3':
-	case '4': case '5': case '6':
-	case '7': case '8': case '9':;
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':;
 		int index = *src - '1';
-		if (index >= _argc) value = NULL;
-		else value = _argv[index];
+		if (index >= _argc)
+			value = NULL;
+		else
+			value = _argv[index];
 		break;
 	default:
 		while (isalnum(*src) || *src == '_') {
@@ -333,7 +341,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 				if (*src == '-' || *src == '=' || *src == '?' || *src == '+') {
 					has_op = *src;
 					src++;
-	
+
 					// we must expand first the word given after the operand
 					const char *end;
 					char *word = expand_string_ctl(src, 1, &end);
@@ -356,9 +364,9 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 			}
 		}
 		if (*src != '}') {
-		bad_substitution:
+bad_substitution:
 			error("bad substitution");
-		error:
+error:
 			xfree(var);
 			return -1;
 		}
@@ -396,7 +404,7 @@ static int handle_backtick(vector_t *dest, const char **ptr, int in_quote) {
 	xfree(buf);
 	if (!node) return -1;
 	if (*found_end != '\0') {
-		error("bad backtick expansion");	
+		error("bad backtick expansion");
 		free_node(node);
 		return -1;
 	}
@@ -450,7 +458,6 @@ static int first_expansion(vector_t *dest, const char *src, int braces_stop, con
 			vector_push_back(dest, src);
 		}
 		src++;
-
 	}
 	if (end) *end = src;
 	vector_push_back(dest, src);
@@ -552,9 +559,9 @@ static void word_spliting(word_t *word, vector_t *strings, const char *expanded,
 
 char **word_expansion(word_t *words, size_t words_count, int split) {
 	vector_t strings = {0};
-	init_vector(&strings, sizeof(char*));
+	init_vector(&strings, sizeof(char *));
 
-	for (size_t i=0; i<words_count; i++) {
+	for (size_t i = 0; i < words_count; i++) {
 		char *expanded = expand_word_ctl(&words[i]);
 		if (!expanded) goto error;
 
@@ -567,8 +574,8 @@ char **word_expansion(word_t *words, size_t words_count, int split) {
 	vector_push_back(&strings, &str);
 	return strings.data;
 error:
-	for (size_t i=0; i<strings.count; i++) {
-		xfree(*(char**)vector_at(&strings, i));
+	for (size_t i = 0; i < strings.count; i++) {
+		xfree(*(char **)vector_at(&strings, i));
 	}
 	free_vector(&strings);
 	return NULL;

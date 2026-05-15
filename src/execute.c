@@ -1,10 +1,10 @@
 #include <sys/wait.h>
+#include <ctype.h>
+#include <fcntl.h>
 #include <stdlib.h>
+#include <tash.h>
 #include <unistd.h>
 #include <vector.h>
-#include <fcntl.h>
-#include <ctype.h>
-#include <tash.h>
 
 typedef struct saved_fd {
 	int original;
@@ -21,17 +21,22 @@ int stack_depth = 0;
 int sigint_break = 0;
 int return_break = 0;
 
-#define BREAK_CHECK if (break_depth > 0) {\
-	break_depth--;\
-	break;\
-}
-#define CONTINUE_CHECK if (continue_depth > 0) {\
-	continue_depth--;\
-	if (continue_depth > 0) break;\
-	else continue;\
-}
+#define BREAK_CHECK \
+	if (break_depth > 0) { \
+		break_depth--; \
+		break; \
+	}
+#define CONTINUE_CHECK \
+	if (continue_depth > 0) { \
+		continue_depth--; \
+		if (continue_depth > 0) \
+			break; \
+		else \
+			continue; \
+	}
 
-#define VARIOUS_BREAK_CHECK if (sigint_break || return_break) break;
+#define VARIOUS_BREAK_CHECK \
+	if (sigint_break || return_break) break;
 
 static void free_args(char **args) {
 	char **arg = args;
@@ -119,7 +124,7 @@ static void restore_fd(saved_fd_t *saved) {
 
 static void restore_fds(vector_t *save) {
 	saved_fd_t *saved = save->data;
-	for (size_t i=0; i<save->count; i++) {
+	for (size_t i = 0; i < save->count; i++) {
 		restore_fd(&saved[i]);
 	}
 	free_vector(save);
@@ -127,7 +132,7 @@ static void restore_fds(vector_t *save) {
 
 static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 	saved_fd_t saved;
-	for (size_t i=0; i<count; i++) {
+	for (size_t i = 0; i < count; i++) {
 		char **val = word_expansion(&redirs[i].dest, 1, 1);
 		if (!val) {
 			// expansion error
@@ -206,7 +211,7 @@ error:
 }
 
 static int apply_assignements(assign_t *assigns, size_t count, int export) {
-	for (size_t i=0; i<count; i++) {
+	for (size_t i = 0; i < count; i++) {
 		char **val = word_expansion(&assigns[i].value, 1, 0);
 		if (!val) {
 			// expansion error
@@ -270,7 +275,7 @@ static void execute_cmd(node_t *node, int flags) {
 	// now try function
 	func_t *func = get_func(args[0]);
 	if (func) {
-		execute_func(func, flags, argc-1, args+1);
+		execute_func(func, flags, argc - 1, args + 1);
 		free_args(args);
 		return;
 	}
@@ -296,7 +301,7 @@ static void execute_pipe(node_t *node, int flags) {
 	group_t group;
 	job_init_group(&group);
 	while (node->type == NODE_PIPE) {
-		node_t *left  = node->binary.left;
+		node_t *left = node->binary.left;
 		node_t *right = node->binary.right;
 		int pipefd[2];
 		pipe(pipefd);
@@ -382,10 +387,10 @@ static void execute_case(node_t *node, int flags) {
 	}
 
 	exit_status = 0;
-	for (size_t i=0; i<node->_case.cases_count; i++) {
+	for (size_t i = 0; i < node->_case.cases_count; i++) {
 		int matched = 0;
 		case_t *_case = &node->_case.cases[i];
-		for (size_t j=0; j<_case->patterns_count; j++) {
+		for (size_t j = 0; j < _case->patterns_count; j++) {
 			char *pattern = expand_word_ctl(&_case->patterns[j]);
 			if (glob_match(pattern, *word)) {
 				matched = 1;
@@ -442,7 +447,7 @@ void execute(node_t *node, int flags) {
 		execute_pipe(node, flags);
 		break;
 	case NODE_SEP:
-		execute(node->binary.left , flags & ~FLAG_NO_FORK);
+		execute(node->binary.left, flags & ~FLAG_NO_FORK);
 		execute(node->binary.right, flags);
 		break;
 	case NODE_AND:

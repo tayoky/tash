@@ -5,11 +5,11 @@
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
 #endif
-#include <unistd.h>
-#include <string.h>
-#include <vector.h>
 #include <stdio.h>
+#include <string.h>
 #include <tash.h>
+#include <unistd.h>
+#include <vector.h>
 
 // process manipulation
 
@@ -18,7 +18,7 @@ void job_report_termination(int status, int bg) {
 	if (WIFEXITED(status)) {
 		exit_status = WEXITSTATUS(status);
 #ifdef HAVE_SIGNAL_H
-	} else if(WIFSIGNALED(status)) {
+	} else if (WIFSIGNALED(status)) {
 		exit_status = WTERMSIG(status) + 128;
 		// only interactive shell print messages
 		if ((flags & TASH_INTERACTIVE) && !bg && (flags & TASH_JOB_CONTROL)) fprintf(stderr, "terminated on %s\n", strsignal(WTERMSIG(status)));
@@ -34,12 +34,12 @@ void job_control_setup(void) {
 	if (flags & TASH_JOB_CONTROL) {
 		signal(SIGTTOU, SIG_IGN);
 		signal(SIGTTIN, SIG_IGN);
-		signal(SIGINT , SIG_IGN);
+		signal(SIGINT, SIG_IGN);
 	} else {
 		signal(SIGTTOU, SIG_DFL);
 		signal(SIGTTIN, SIG_DFL);
 		signal(SIGTSTP, SIG_DFL);
-		signal(SIGINT , SIG_DFL);
+		signal(SIGINT, SIG_DFL);
 	}
 #endif
 }
@@ -105,8 +105,9 @@ int job_wait_pid(pid_t pid) {
 
 int job_wait(group_t *group) {
 	int status;
-	for (size_t i=0; i<group->childs.count; i++) {;
-		waitpid(*(pid_t*)vector_at(&group->childs, i), &status, 0);
+	for (size_t i = 0; i < group->childs.count; i++) {
+		;
+		waitpid(*(pid_t *)vector_at(&group->childs, i), &status, 0);
 		job_report_termination(status, 0);
 	}
 #ifdef HAVE_TERMIOS_H

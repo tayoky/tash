@@ -1,6 +1,6 @@
 #include <string.h>
-#include <vector.h>
 #include <tash.h>
+#include <vector.h>
 
 // function manager
 
@@ -8,7 +8,7 @@ static vector_t funcs;
 
 func_t *get_func(const char *name) {
 	func_t *func = funcs.data;
-	for (size_t i=0; i<funcs.count; i++) {
+	for (size_t i = 0; i < funcs.count; i++) {
 		if (!strcmp(func[i].name, name)) {
 			return &func[i];
 		}
@@ -33,8 +33,8 @@ void register_func(const char *name, node_t *node) {
 void unregister_func(const char *name) {
 	func_t *func = get_func(name);
 	if (!func) return;
-	if (func != (func_t*)vector_at(&funcs, funcs.count-1)) {
-		func_t *last = vector_at(&funcs, funcs.count-1);
+	if (func != (func_t *)vector_at(&funcs, funcs.count - 1)) {
+		func_t *last = vector_at(&funcs, funcs.count - 1);
 		memcpy(func, last, sizeof(func_t));
 	}
 	vector_pop_back(&funcs, NULL);

@@ -1,17 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <tash.h>
+#include <unistd.h>
 
 static int builtin_set(int argc, char **argv) {
-	int i=1;
-	for (; i<argc; i++) {
+	int i = 1;
+	for (; i < argc; i++) {
 		if (argv[i][0] != '-') break;
 		if (!strcmp(argv[i], "--")) {
 			i++;
 			break;
 		}
-		int mask  = 0;
+		int mask = 0;
 		char *f = argv[i];
 		if (!*f) goto invalid;
 		f++;
@@ -53,17 +53,17 @@ static int builtin_set(int argc, char **argv) {
 		}
 		continue;
 invalid:
-		error("set : invalid option : '%s'",argv[i]);
+		error("set : invalid option : '%s'", argv[i]);
 		return 1;
 	}
-static char *argv_array[256];
+	static char *argv_array[256];
 
 	if (argc - i >= 256) {
 		i = argc - 256 + 1;
 	}
 	_argc = argc - i;
 	_argv = argv_array;
-	for (int j=0; i<argc; i++, j++) {
+	for (int j = 0; i < argc; i++, j++) {
 		// FIXME:WE LEAK MEMORY
 		argv_array[j] = xstrdup(argv[i]);
 	}
@@ -77,8 +77,8 @@ static int builtin_exit(int argc, char **argv) {
 		return 1;
 	} else if (argc == 2) {
 		char *end;
-		int status = strtol(argv[1],&end,10);
-		if(end == argv[1] || *end){
+		int status = strtol(argv[1], &end, 10);
+		if (end == argv[1] || *end) {
 			error("exit : numeric argument required");
 			exit(2);
 		}
@@ -90,7 +90,7 @@ static int builtin_exit(int argc, char **argv) {
 
 static int builtin_export(int argc, char **argv) {
 	if (argc < 2 || !strcmp(argv[1], "-p")) {
-		for (size_t i=0; i<vars_count; i++) {
+		for (size_t i = 0; i < vars_count; i++) {
 			if (vars[i].exported) printf("%s=%s\n", vars[i].name, vars[i].value);
 		}
 		return 0;
@@ -118,7 +118,7 @@ static int builtin_cd(int argc, char **argv) {
 	if (argc > 2) {
 		error("cd : too many arguments");
 		return 1;
-	} else if(argc == 2){
+	} else if (argc == 2) {
 		if (chdir(argv[1]) < 0) {
 			perror(argv[1]);
 			return 1;
@@ -144,7 +144,7 @@ static int builtin_cd(int argc, char **argv) {
 }
 
 static int builtin_src(int argc, char **argv) {
-	//TODO : search in PATH first ???
+	// TODO : search in PATH first ???
 	if (argc < 2) {
 		error("source : missing argument");
 		return 1;
@@ -168,13 +168,13 @@ static int builtin_src(int argc, char **argv) {
 
 static int builtin_echo(int argc, char **argv) {
 	int newline = 1;
-	int i=1;
+	int i = 1;
 	if (argc > 2 && !strcmp(argv[1], "-n")) {
 		newline = 0;
 		i++;
 	}
 
-	for (; i<argc; i++) {
+	for (; i < argc; i++) {
 		int ret;
 		if (i == argc - 1) {
 			ret = printf("%s", argv[i]);
@@ -200,12 +200,12 @@ static int builtin_echo(int argc, char **argv) {
 
 static int builtin_eval(int argc, char **argv) {
 	size_t total = 1;
-	for (int i=1; i<argc; i++) {
+	for (int i = 1; i < argc; i++) {
 		total += strlen(argv[i]) + 1;
 	}
 	char *buf = xmalloc(total);
 	char *ptr = buf;
-	for (int i=1; i<argc; i++) {
+	for (int i = 1; i < argc; i++) {
 		strcpy(ptr, argv[i]);
 		ptr += strlen(argv[i]);
 		*(ptr++) = ' ';
@@ -285,7 +285,7 @@ static int builtin_wait(int argc, char **argv) {
 			}
 		}
 	} else {
-		for (int i=1; i<argc; i++) {
+		for (int i = 1; i < argc; i++) {
 			char *end;
 			pid_t pid = (pid_t)strtol(argv[i], &end, 10);
 			if (end == argv[i] || *end) {
@@ -317,8 +317,8 @@ static int builtin_return(int argc, char **argv) {
 		return 1;
 	} else if (argc == 2) {
 		char *end;
-		int status = strtol(argv[1],&end,10);
-		if(end == argv[1] || *end){
+		int status = strtol(argv[1], &end, 10);
+		if (end == argv[1] || *end) {
 			error("return : numeric argument required");
 			exit_status = 2;
 		}
@@ -356,15 +356,15 @@ static int builtin_shift(int argc, char **argv) {
 }
 
 static int builtin_unset(int argc, char **argv) {
-	int i=1;
+	int i = 1;
 	int do_func = 0;
-	int do_var  = 0;
+	int do_var = 0;
 	while (i < argc && argv[i][0] == '-') {
 		if (!strcmp(argv[i], "--")) {
 			i++;
 			break;
 		}
-		for (int k=1; argv[i][k]; k++) {
+		for (int k = 1; argv[i][k]; k++) {
 			switch (argv[i][k]) {
 			case 'v':
 				do_var = 1;
@@ -385,40 +385,40 @@ static int builtin_unset(int argc, char **argv) {
 		do_var = 1;
 		do_func = 1;
 	}
-		
-	for (int j=i; j<argc; j++) {
+
+	for (int j = i; j < argc; j++) {
 		if (do_var && unset_var(argv[j])) continue;
 		if (do_func) unregister_func(argv[j]);
 	}
 	return 0;
 }
 
-#define CMD(n,cmd) {.name = n,.func = (int (*)(int,char**))cmd}
+#define CMD(n, cmd) {.name = n, .func = (int (*)(int, char **))cmd}
 static builtin_t builtin[] = {
-	CMD("cd"      ,builtin_cd),
-	CMD("exit"    ,builtin_exit),
-	CMD("export"  ,builtin_export),
-	CMD("source"  ,builtin_src),
-	CMD("."       ,builtin_src),
-	CMD("set"     ,builtin_set),
-	CMD("echo"    ,builtin_echo),
-	CMD("eval"    ,builtin_eval),
-	CMD(":"       ,builtin_true),
-	CMD("true"    ,builtin_true),
-	CMD("false"   ,builtin_false),
-	CMD("break"   ,builtin_break),
-	CMD("continue",builtin_continue),
-	CMD("wait"    ,builtin_wait),
-	CMD("return"  ,builtin_return),
-	CMD("shift"   ,builtin_shift),
-	CMD("unset"   ,builtin_unset),
+	CMD("cd",       builtin_cd),
+	CMD("exit",     builtin_exit),
+	CMD("export",   builtin_export),
+	CMD("source",   builtin_src),
+	CMD(".",        builtin_src),
+	CMD("set",      builtin_set),
+	CMD("echo",     builtin_echo),
+	CMD("eval",     builtin_eval),
+	CMD(":",        builtin_true),
+	CMD("true",     builtin_true),
+	CMD("false",    builtin_false),
+	CMD("break",    builtin_break),
+	CMD("continue", builtin_continue),
+	CMD("wait",     builtin_wait),
+	CMD("return",   builtin_return),
+	CMD("shift",    builtin_shift),
+	CMD("unset",    builtin_unset),
 };
 
 // TODO handle SIGINT in builtins
-int try_builtin(int argc,char **argv){
-	for(size_t i=0; i<arraylen(builtin);i++){
-		if(!strcmp(argv[0],builtin[i].name)){
-			return builtin[i].func(argc,argv);
+int try_builtin(int argc, char **argv) {
+	for (size_t i = 0; i < arraylen(builtin); i++) {
+		if (!strcmp(argv[0], builtin[i].name)) {
+			return builtin[i].func(argc, argv);
 		}
 	}
 

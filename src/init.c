@@ -1,14 +1,14 @@
 #include <sys/stat.h>
-#include <unistd.h>
 #include <signal.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <tash.h>
+#include <unistd.h>
 
 pid_t shell_pid;
 pid_t shell_pgid;
 
-static void ex_script(const char *name){
+static void ex_script(const char *name) {
 	char path[256];
 	struct stat st;
 
@@ -21,12 +21,12 @@ static void ex_script(const char *name){
 	}
 
 	snprintf(path, sizeof(path), "/etc/%s", name);
-	if (stat(path, &st) >= 0){
+	if (stat(path, &st) >= 0) {
 		eval_script(path);
 	}
 }
 
-void init(void){
+void init(void) {
 	shell_pid = getpid();
 	shell_pgid = getpgid(0);
 	setup_var();

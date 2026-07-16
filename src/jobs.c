@@ -29,12 +29,19 @@ void job_report_termination(int status, int bg) {
 	}
 }
 
+#ifdef HAVE_SIGNAL_H
+static void sigint_handler(int signum) {
+	(void)signum;
+	sigint_break = 1;
+}
+#endif
+
 void job_control_setup(void) {
 #ifdef HAVE_SIGNAL_H
 	if (flags & TASH_JOB_CONTROL) {
 		signal(SIGTTOU, SIG_IGN);
 		signal(SIGTTIN, SIG_IGN);
-		signal(SIGINT, SIG_IGN);
+		signal(SIGINT, sigint_handler);
 	} else {
 		signal(SIGTTOU, SIG_DFL);
 		signal(SIGTTIN, SIG_DFL);

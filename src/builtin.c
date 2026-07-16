@@ -390,6 +390,56 @@ static int builtin_unset(int argc, char **argv) {
 	return 0;
 }
 
+static int builtin_kill(int argc, char **argv) {
+	int i=1;
+	int sig = SIGTERM;
+	exit_status = 0;
+	while (i < argc && argv[i][0] == '-') {
+		if (!strcmp(argv[i], "--")) {
+			i++;
+			break;
+		}
+		if (!strcmp(argv[i], "-n")) {
+			i++;
+			char *end;
+			sig = strtol(argv[i], &end, 10);
+			if (end == argv[i] || *end) {
+				error("kill : invalid signal number '%s'", argv[i]);
+				return 1;
+			}
+		} else {
+			char *end;
+			sig = strtol(&argv[i][1], &end, 10);
+			if (end == &argv[i][1] || *end) {
+				error("kill : invalid signal number '%s'", &argv[i][1]);
+				return 1;
+			}
+		}
+		i++;
+	}
+
+	if (argc <= i) {
+		error("kill : missing argument");
+		return 1;
+	}
+
+	for (; i<argc; i++) {
+		char *end;
+		pid_t pid = (pid_t)strtol(argv[i], &end, 10);
+		if (end == argv[i] || *end) {
+			error("kill : invalid pid '%s'", argv[i]);
+			exit_status = 1;
+			continue;
+		}
+
+		if (kill(pid, sig) < 0) {
+			perror(argv[i]);
+			exit_status = 1;
+		}
+	}
+	return exit_status;
+}
+
 #define CMD(n, cmd) {.name = n, .func = (int (*)(int, char **))cmd}
 static builtin_t builtin[] = {
 	CMD("cd",       builtin_cd),
@@ -409,6 +459,7 @@ static builtin_t builtin[] = {
 	CMD("return",   builtin_return),
 	CMD("shift",    builtin_shift),
 	CMD("unset",    builtin_unset),
+	CMD("kill",     builtin_kill),
 };
 
 // TODO handle SIGINT in builtins

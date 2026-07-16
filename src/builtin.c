@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <tash.h>
 #include <unistd.h>
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 
 static int builtin_set(int argc, char **argv) {
 	int i = 1;
@@ -391,6 +394,7 @@ static int builtin_unset(int argc, char **argv) {
 }
 
 static int builtin_kill(int argc, char **argv) {
+#ifdef HAVE_SIGNAL_H
 	int i=1;
 	int sig = SIGTERM;
 	exit_status = 0;
@@ -438,6 +442,10 @@ static int builtin_kill(int argc, char **argv) {
 		}
 	}
 	return exit_status;
+#else
+	error("kill : tash was compiled without signal support");
+	return 1;
+#endif
 }
 
 #define CMD(n, cmd) {.name = n, .func = (int (*)(int, char **))cmd}

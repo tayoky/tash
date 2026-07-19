@@ -219,7 +219,7 @@ static char **autocomplete(char *str) {
 	closedir(dirfd);
 	free(dir);
 #else
-	char *fill = NULL;
+	char **fill = NULL;
 	size_t count = 0;
 #endif
 	fill = realloc(fill, sizeof(char *) * (count + 1));

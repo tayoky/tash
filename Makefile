@@ -1,4 +1,5 @@
-TMAKE_DIR=$(CURDIR)/make
+TOP = $(CURDIR)
+TMAKE_DIR = $(TOP)/make
 include $(TMAKE_DIR)/tmake-init.mk
 
 PROG = tash

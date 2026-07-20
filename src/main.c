@@ -6,6 +6,7 @@ int flags;
 int _argc;
 char **_argv;
 char *_argv0;
+const char *tash_cmd;
 
 #define OPT(name, f) \
 	if (!strcmp(name, opt)) { \
@@ -30,8 +31,10 @@ int main(int argc, char **argv) {
 	_argc = argc - 1;
 	_argv = argv + 1;
 	_argv0 = argv[0];
+	tash_cmd = argv[0];
 	if (argc > 0 && argv[0][0] == '-') {
 		flags |= TASH_LOGIN;
+		tash_cmd++;
 	}
 
 	int i = 1;

@@ -9,3 +9,7 @@ CFLAGS += -Iinclude --std=c99 -D_POSIX_C_SOURCE=200809L
 CFLAGS += -DVERSION='"$(VERSION)"'
 
 include $(TMAKE_DIR)/tmake-prog.mk
+
+FILES = COPYING.txt README.md
+FILESDIR = $(DOCDIR)/tash
+include $(TMAKE_DIR)/tmake-files.mk

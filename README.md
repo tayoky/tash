@@ -1,8 +1,8 @@
 # tash
-**TASH** (tayoky's advanced shell) aim to be a small portable posix shell
+**TASH** (tayoky's advanced shell) aim to be a small portable posix shell. Tash is also the default shell of [the Stanix operating system](https://github.com/tayoky/stanix)
 
 ## features
-Soems of the features tash currently has :
+Somes of the features tash currently has :
 - quote support
 - if/else/elif statements
 - for/while/until loops

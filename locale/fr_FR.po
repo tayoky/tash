@@ -1,21 +1,81 @@
-# SOME DESCRIPTIVE TITLE.
+# French translations for tash package.
 # Copyright (C) 2026 Tayoky
 # This file is distributed under the same license as the tash package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Tayoky tayoky4848@gmail.com 2026.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 15:23+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"Project-Id-Version: tash v0.1.0-29-g4f2340e\n"
+"Report-Msgid-Bugs-To: <tayoky4848@gmail.com>\n"
+"POT-Creation-Date: 2026-07-21 15:52+0200\n"
+"PO-Revision-Date: 2026-07-21 20:28+0200\n"
+"Last-Translator: Tayoky tayoky4848@gmail.com\n"
+"Language-Team: Tayoky tayoky4848@gmail.com\n"
+"Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: src/builtin.c:65
+#, c-format
+msgid "invalid option : '%s'"
+msgstr "option non reconnue : '%s'"
+
+#: src/builtin.c:85 src/builtin.c:128 src/builtin.c:257 src/builtin.c:280
+#: src/builtin.c:322 src/builtin.c:349
+msgid "too many arguments"
+msgstr "trop d'arguments"
+
+#: src/builtin.c:91 src/builtin.c:251 src/builtin.c:274 src/builtin.c:328
+#: src/builtin.c:345
+msgid "numeric argument required"
+msgstr "argument numérique requis"
+
+#: src/builtin.c:143
+msgid "HOME not set"
+msgstr "la variable HOME n'est pas définit"
+
+#: src/builtin.c:158 src/builtin.c:432
+msgid "missing argument"
+msgstr "argument manquant"
+
+#: src/builtin.c:241
+msgid "'break' only work in 'while', 'until' and 'for' loops"
+msgstr "'break' n'a d'utilité que des les boucles 'while', 'until' et 'for'"
+
+#: src/builtin.c:264
+msgid "'continue' only work in 'while', 'until' and 'for' loops"
+msgstr "'continue' n'a d'utilité que des les boucles 'while', 'until' et 'for'"
+
+#: src/builtin.c:298 src/builtin.c:440
+#, c-format
+msgid "invalid pid '%s'"
+msgstr "pid invalide '%s'"
+
+#: src/builtin.c:305
+#, c-format
+msgid "%ld is not a child process"
+msgstr "%ld n'est pas un processus enfant"
+
+#: src/builtin.c:318
+msgid "'return' only work in sourced scripts and functions"
+msgstr ""
+
+#: src/builtin.c:382
+#, c-format
+msgid "unknow options '-%c'"
+msgstr "option non reconnue '-%c'"
+
+#: src/builtin.c:417 src/builtin.c:424
+#, c-format
+msgid "invalid signal number '%s'"
+msgstr "numéro de signal invalide '%s'"
+
+#: src/builtin.c:452
+msgid "tash was compiled without signal support"
+msgstr "complilé sans le support des signaux"
 
 #: src/execute.c:82 src/execute.c:87 src/execute.c:92 src/execute.c:96
 msgid "save fd"
@@ -72,17 +132,17 @@ msgstr "mauvaise expression backtick"
 msgid "terminated on %s\n"
 msgstr "terminé sur %s\n"
 
-#: src/main.c:59
+#: src/main.c:61
 #, c-format
 msgid "unknow option '--%s' (see --help)"
 msgstr "option non reconnue '--%s' (voir --help)"
 
-#: src/main.c:71
+#: src/main.c:73
 #, c-format
 msgid "unknow option '%c' (see --help)"
 msgstr "option non reconnue '%c' (voir --help)"
 
-#: src/main.c:80
+#: src/main.c:82
 msgid "missing command string"
 msgstr "commande non specifiée"
 
@@ -121,6 +181,6 @@ msgid "invalid identifier"
 msgstr "identifieur invalide"
 
 #: src/var.c:84
-#, c-format
+#, fuzzy, c-format
 msgid "invalid environ string '%s'"
 msgstr "chaine de charactère d'environement invalide"

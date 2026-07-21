@@ -6,6 +6,12 @@
 #include <signal.h>
 #endif
 
+#define builtin_error(...) { \
+	char buf[256]; \
+	snprintf(buf, sizeof(buf), __VA_ARGS__); \
+	error("%s : %s", argv[0], buf); \
+}
+
 static int builtin_set(int argc, char **argv) {
 	int i = 1;
 	for (; i < argc; i++) {
@@ -56,7 +62,7 @@ static int builtin_set(int argc, char **argv) {
 		}
 		continue;
 invalid:
-		error("set : invalid option : '%s'", argv[i]);
+		builtin_error(_("invalid option : '%s'"), argv[i]);
 		return 1;
 	}
 	static char *argv_array[256];
@@ -76,13 +82,13 @@ invalid:
 
 static int builtin_exit(int argc, char **argv) {
 	if (argc > 2) {
-		error("exit : too many arguments");
+		builtin_error(_("too many arguments"));
 		return 1;
 	} else if (argc == 2) {
 		char *end;
 		int status = strtol(argv[1], &end, 10);
 		if (end == argv[1] || *end) {
-			error("exit : numeric argument required");
+			builtin_error(_("numeric argument required"));
 			exit(2);
 		}
 		exit(status);
@@ -119,7 +125,7 @@ static int builtin_export(int argc, char **argv) {
 
 static int builtin_cd(int argc, char **argv) {
 	if (argc > 2) {
-		error("cd : too many arguments");
+		builtin_error(_("too many arguments"));
 		return 1;
 	} else if (argc == 2) {
 		if (chdir(argv[1]) < 0) {
@@ -134,7 +140,7 @@ static int builtin_cd(int argc, char **argv) {
 	} else {
 		const char *home = getvar("HOME");
 		if (!home) {
-			error("cd : HOME not set");
+			error(_("HOME not set"));
 			return 1;
 		}
 		if (chdir(home) < 0) {
@@ -149,7 +155,7 @@ static int builtin_cd(int argc, char **argv) {
 static int builtin_src(int argc, char **argv) {
 	// TODO : search in PATH first ???
 	if (argc < 2) {
-		error("source : missing argument");
+		builtin_error(_("missing argument"));
 		return 1;
 	}
 
@@ -232,7 +238,7 @@ static int builtin_false(int argc, char **argv) {
 
 static int builtin_break(int argc, char **argv) {
 	if (loop_depth == 0) {
-		error("break : 'break' only work in 'while', 'until' and 'for' loops");
+		builtin_error(_("'break' only work in 'while', 'until' and 'for' loops"));
 		return 0;
 	}
 	if (argc < 2) {
@@ -242,20 +248,20 @@ static int builtin_break(int argc, char **argv) {
 		char *end;
 		break_depth = strtol(argv[1], &end, 10);
 		if (end == argv[1] || *end) {
-			error("break : numeric argument required");
+			builtin_error(_("numeric argument required"));
 			return 1;
 		}
 		if (break_depth > loop_depth) break_depth = loop_depth;
 		return 0;
 	} else {
-		error("break : too many arguments");
+		builtin_error(_("too many arguments"));
 		return 1;
 	}
 }
 
 static int builtin_continue(int argc, char **argv) {
 	if (loop_depth == 0) {
-		error("continue : 'continue' only work in 'while', 'until' and 'for' loops");
+		builtin_error(_("'continue' only work in 'while', 'until' and 'for' loops"));
 		return 0;
 	}
 	if (argc < 2) {
@@ -265,13 +271,13 @@ static int builtin_continue(int argc, char **argv) {
 		char *end;
 		continue_depth = strtol(argv[1], &end, 10);
 		if (end == argv[1] || *end) {
-			error("continue : numeric argument required");
+			builtin_error(_("numeric argument required"));
 			return 1;
 		}
 		if (continue_depth > loop_depth) continue_depth = loop_depth;
 		return 0;
 	} else {
-		error("continue : too many arguments");
+		builtin_error(_("too many arguments"));
 		return 1;
 	}
 }
@@ -289,14 +295,14 @@ static int builtin_wait(int argc, char **argv) {
 			char *end;
 			pid_t pid = (pid_t)strtol(argv[i], &end, 10);
 			if (end == argv[i] || *end) {
-				error("wait : invalid pid '%s'", argv[i]);
+				builtin_error(_("invalid pid '%s'"), argv[i]);
 				exit_status = 1;
 				continue;
 			}
 			if (job_wait_pid(pid) < 0) {
 				exit_status = 127;
 				if (errno == ECHILD) {
-					error("wait : %ld is not a child process", (long)pid);
+					builtin_error(_("%ld is not a child process"), (long)pid);
 				} else {
 					perror(argv[i]);
 				}
@@ -309,17 +315,17 @@ static int builtin_wait(int argc, char **argv) {
 
 static int builtin_return(int argc, char **argv) {
 	if (stack_depth == 0) {
-		error("return : 'return' only work in sourced scripts and functions");
+		builtin_error(_("'return' only work in sourced scripts and functions"));
 		return 1;
 	}
 	if (argc > 2) {
-		error("return : too many arguments");
+		builtin_error(_("too many arguments"));
 		return 1;
 	} else if (argc == 2) {
 		char *end;
 		int status = strtol(argv[1], &end, 10);
 		if (end == argv[1] || *end) {
-			error("return : numeric argument required");
+			builtin_error(_("numeric argument required"));
 			exit_status = 2;
 		}
 		exit_status = status;
@@ -336,11 +342,11 @@ static int builtin_shift(int argc, char **argv) {
 		char *end;
 		amount = strtol(argv[1], &end, 10);
 		if (end == argv[1] || *end) {
-			error("shift : numeric argument required");
+			builtin_error(_("numeric argument required"));
 			return 1;
 		}
 	} else {
-		error("shift : too many arguments");
+		builtin_error(_("too many arguments"));
 		return 1;
 	}
 	if (amount < 0) {
@@ -373,7 +379,7 @@ static int builtin_unset(int argc, char **argv) {
 				do_func = 1;
 				break;
 			default:
-				error("unset : unknow options '-%c'", argv[i][k]);
+				builtin_error(_("unknow options '-%c'"), argv[i][k]);
 				return 1;
 			}
 		}
@@ -408,14 +414,14 @@ static int builtin_kill(int argc, char **argv) {
 			char *end;
 			sig = strtol(argv[i], &end, 10);
 			if (end == argv[i] || *end) {
-				error("kill : invalid signal number '%s'", argv[i]);
+				builtin_error(_("invalid signal number '%s'"), argv[i]);
 				return 1;
 			}
 		} else {
 			char *end;
 			sig = strtol(&argv[i][1], &end, 10);
 			if (end == &argv[i][1] || *end) {
-				error("kill : invalid signal number '%s'", &argv[i][1]);
+				builtin_error(_("invalid signal number '%s'"), &argv[i][1]);
 				return 1;
 			}
 		}
@@ -423,7 +429,7 @@ static int builtin_kill(int argc, char **argv) {
 	}
 
 	if (argc <= i) {
-		error("kill : missing argument");
+		builtin_error(_("missing argument"));
 		return 1;
 	}
 
@@ -431,7 +437,7 @@ static int builtin_kill(int argc, char **argv) {
 		char *end;
 		pid_t pid = (pid_t)strtol(argv[i], &end, 10);
 		if (end == argv[i] || *end) {
-			error("kill : invalid pid '%s'", argv[i]);
+			builtin_error(_("invalid pid '%s'"), argv[i]);
 			exit_status = 1;
 			continue;
 		}
@@ -443,7 +449,7 @@ static int builtin_kill(int argc, char **argv) {
 	}
 	return exit_status;
 #else
-	error("kill : tash was compiled without signal support");
+	builtin_error(_("tash was compiled without signal support"));
 	return 1;
 #endif
 }

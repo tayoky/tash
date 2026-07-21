@@ -1,6 +1,7 @@
 # makefile include to manage .mo/.po/.pot files
 
 LOCALES ?= $(wildcard locale/*.po)
+TEMPLATE_POT ?= $(BUILDDIR)/locale/template.pot
 LOCALES_MO ?= $(LOCALES:%.po=$(BUILDDIR)/%.mo)
 
 ifneq ($(strip $(LOCALES_MO)),)
@@ -13,23 +14,26 @@ $(BUILDDIR)/%.mo : %.po
 .PHONY : install-locale
 install : install-locale
 install-locale : $(LOCALES)
-	@mkdir -p "$(LOCALEDIR)/$(PROG)"
+	@mkdir -p "$(LOCALEDIR)/$(PACKAGE)"
 	@echo "INSTALL $(LOCALES_MO)"
-	@cp $(LOCALES_MO) "$(LOCALEDIR)/$(PROG)"
+	@cp $(LOCALES_MO) "$(LOCALEDIR)/$(PACKAGE)"
 
 .PHONY : uninstall-locale
 uninstall : uninstall-locale
 uninstall-locale :
-	@echo "UNINSTALL $(LOCALEDIR)/$(PROG)"
-	@rm -fr "$(LOCALEDIR)/$(PROG)"
+	@echo "UNINSTALL $(LOCALEDIR)/$(PACKAGE)"
+	@rm -fr "$(LOCALEDIR)/$(PACKAGE)"
 endif
 
-.PHONY : generate_template
-generate_template : $(BUILDDIR)/template.pot
-$(BUILDDIR)/template.pot : $(SRCS)
+.PHONY : update-po
+update-po : $(TEMPLATE_POT)
+$(TEMPLATE_POT) : $(SRCS)
 	@mkdir -p "$(@D)"
-	@echo "GEN template.pot"
-	$(Q)xgettext --keyword=_ -o $@ $^
+	@echo "GEN $(TEMPLATE_POT)"
+	$(Q)xgettext --keyword=_ \
+		--package-name="$(PACKAGE)" \
+		--package-version="$(VERSION)" \
+		-o "$@" $^
 	$(Q)for I in $(LOCALES) ; do \
-		msgmerge --update $$I $@; \
+		msgmerge --update $$I "$@"; \
 	done

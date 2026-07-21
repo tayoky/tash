@@ -81,7 +81,7 @@ void setup_var(void) {
 		char *name = xstrdup(environ[i]);
 		char *value = strchr(name, '=');
 		if (!value) {
-			error("inavlid environ string '%s'", name);
+			error(_("invalid environ string '%s'"), name);
 			xfree(name);
 			continue;
 		}

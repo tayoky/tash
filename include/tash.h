@@ -290,6 +290,11 @@ void register_func(const char *name, node_t *node);
 void unregister_func(const char *name);
 void setup_funcs(void);
 
+// locale stuff
+void setup_locale(void);
+const char *locale_getstr(const char *msgid) __attribute__((format_arg(1)));
+#define _ locale_getstr
+
 void init();
 
 

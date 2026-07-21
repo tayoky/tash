@@ -12,7 +12,11 @@
 static int parser_error;
 int prompt;
 
-#define syntax_error(...) error("syntax error : " __VA_ARGS__)
+#define syntax_error(...) { \
+	char buf[1024]; \
+	snprintf(buf, sizeof(buf), __VA_ARGS__); \
+	error(_("syntax error : %s"), buf); \
+}
 
 static node_t *new_node(int type) {
 	node_t *node = xmalloc(sizeof(node_t));
@@ -117,7 +121,7 @@ static node_t *must_parse_list(source_t *src, int multi_lines) {
 	if (node) return node;
 	if (!parser_error) {
 		token_t *token = next_token(src);
-		syntax_error("unexpected token '%s'", token_name(token));
+		syntax_error(_("unexpected token '%s'"), token_name(token));
 		destroy_token(token);
 
 		parser_error = 1;
@@ -130,7 +134,7 @@ static int expect_token(source_t *src, int type) {
 	token_t *token = next_token(src);
 	if (token->type != type) {
 		// syntax error
-		syntax_error("unexpected token '%s' (expected '%s')", token_name(token), token_name(&expect));
+		syntax_error(_("unexpected token '%s' (expected '%s')"), token_name(token), token_name(&expect));
 		destroy_token(token);
 		parser_error = 1;
 		return -1;
@@ -182,7 +186,7 @@ static node_t *parse_for(source_t *src) {
 	token_t *name = next_token(src);
 	if (!token_is_word(name)) {
 		// syntax error
-		syntax_error("unexpected token '%s' (expected 'word')", token_name(name));
+		syntax_error(_("unexpected token '%s' (expected 'word')"), token_name(name));
 		goto error;
 	}
 	token_t *in = next_token(src);
@@ -201,7 +205,7 @@ static node_t *parse_for(source_t *src) {
 			token = next_token(src);
 		}
 		if (token->type != T_SEMI_COLON && token->type != T_NEWLINE) {
-			syntax_error("unexpected token '%s' (expected ';' or '<newline>')", token_name(token));
+			syntax_error(_("unexpected token '%s' (expected ';' or '<newline>')"), token_name(token));
 			destroy_token(token);
 			goto error;
 		}
@@ -258,7 +262,7 @@ static node_t *parse_case(source_t *src) {
 	token_t *word = next_token(src);
 	if (!token_is_word(word)) {
 		// syntax error
-		syntax_error("unexpected token '%s' (expected 'word')", token_name(word));
+		syntax_error(_("unexpected token '%s' (expected 'word')"), token_name(word));
 		goto error;
 	}
 
@@ -280,7 +284,7 @@ static node_t *parse_case(source_t *src) {
 		for (;;) {
 			if (!token_is_word(token)) {
 				// syntax error
-				syntax_error("unexpected token '%s' (expected 'word')", token_name(token));
+				syntax_error(_("unexpected token '%s' (expected 'word')"), token_name(token));
 				destroy_token(token);
 				goto error;
 			}
@@ -455,7 +459,7 @@ static node_t *parse_group(source_t *src) {
 static int parse_redir(source_t *src, token_t *first, redir_t *redir) {
 	token_t *last = next_token(src);
 	if (!token_is_word(last)) {
-		syntax_error("unexpected token '%s' (expected 'word')", token_name(last));
+		syntax_error(_("unexpected token '%s' (expected 'word')"), token_name(last));
 		destroy_token(last);
 		parser_error = 1;
 		return -1;
@@ -586,7 +590,7 @@ static node_t *parse_func(source_t *src, token_t *name) {
 	if (!body) {
 		if (!parser_error) {
 			token_t *next = next_token(src);
-			syntax_error("unexpected token '%s'", token_name(next));
+			syntax_error(_("unexpected token '%s'"), token_name(next));
 			destroy_token(next);
 		}
 		goto error;
@@ -594,7 +598,7 @@ static node_t *parse_func(source_t *src, token_t *name) {
 
 	if (!is_valid_name(name)) {
 		// TODO : get a token2str
-		syntax_error("invalid identifier");
+		syntax_error(_("invalid identifier"));
 		free_node(body);
 		goto error;
 	}
@@ -727,7 +731,7 @@ static node_t *parse_simple_pipeline(source_t *src) {
 	if (!right_cmd) {
 		if (!parser_error) {
 			token = next_token(src);
-			syntax_error("unexpected token '%s'", token_name(token));
+			syntax_error(_("unexpected token '%s'"), token_name(token));
 			destroy_token(token);
 			parser_error = 1;
 		}
@@ -757,7 +761,7 @@ static node_t *parse_pipeline(source_t *src) {
 	if (!child) {
 		if (!parser_error) {
 			token = next_token(src);
-			syntax_error("unexpected token '%s'", token_name(token));
+			syntax_error(_("unexpected token '%s'"), token_name(token));
 			destroy_token(token);
 			parser_error = 1;
 		}
@@ -786,7 +790,7 @@ static node_t *parse_logic_list(source_t *src) {
 			destroy_token(token);
 			if (!parser_error) {
 				token = next_token(src);
-				syntax_error("unexpected token '%s'", token_name(token));
+				syntax_error(_("unexpected token '%s'"), token_name(token));
 				destroy_token(token);
 				parser_error = 1;
 			}
@@ -845,7 +849,7 @@ static node_t *parse_list(source_t *src, int multi_lines) {
 					unget_token(src, token);
 					break;
 				}
-				syntax_error("unexpected token '%s'", token_name(token));
+				syntax_error(_("unexpected token '%s'"), token_name(token));
 				destroy_token(token);
 				parser_error = 1;
 			}
@@ -869,7 +873,7 @@ static node_t *parse_line(source_t *src) {
 	if (token->type == T_EOF) {
 		destroy_token(token);
 	} else {
-		syntax_error("unexpected token '%s'", token_name(token));
+		syntax_error(_("unexpected token '%s'"), token_name(token));
 		destroy_token(token);
 		parser_error = 1;
 	}

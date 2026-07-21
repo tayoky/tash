@@ -79,28 +79,28 @@ static int save_fd(int fd, saved_fd_t *saved) {
 #if defined(HAVE_FCNTL) && defined(HAVE_DUP2)
 	saved->original = fd;
 	if ((saved->flags = fcntl(fd, F_GETFD, 0)) < 0) {
-		perror("save fd");
+		perror(_("save fd"));
 		return -1;
 	}
 #ifdef F_DUPFD_CLOEXEC
 	if ((saved->saved = fcntl(fd, F_DUPFD_CLOEXEC, 10)) < 0) {
-		perror("save fd");
+		perror(_("save fd"));
 		return -1;
 	}
 #else
 	if ((saved->saved = dup(fd)) < 0) {
-		perror("save fd");
+		perror(_("save fd"));
 		return -1;
 	}
 	if (fcntl(saved->saved, F_SETFD, FD_CLOEXEC) < 0) {
-		perror("save fd");
+		perror(_("save fd"));
 		close(saved->saved);
 		return -1;
 	}
 #endif
 	return 0;
 #else
-	error("compiled without fcntl and redirection support");
+	error(_("compiled without fcntl and redirection support"));
 	return -1;
 #endif
 }
@@ -109,12 +109,12 @@ static void restore_fd(saved_fd_t *saved) {
 #if defined(HAVE_FCNTL) && defined(HAVE_DUP2)
 	flush_fd(saved->original);
 	if (dup2(saved->saved, saved->original) < 0) {
-		perror("restore fd");
+		perror(_("restore fd"));
 		close(saved->saved);
 		return;
 	}
 	if (fcntl(saved->original, F_SETFD, saved->flags) < 0) {
-		perror("restore fd");
+		perror(_("restore fd"));
 	}
 	close(saved->saved);
 #else
@@ -140,7 +140,7 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 		}
 		if (!val[0] || val[1]) {
 			// ambiguous
-			error("ambiguous redirection");
+			error(_("ambiguous redirection"));
 			free_args(val);
 			goto error;
 		}
@@ -171,7 +171,7 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 				goto error;
 			}
 #else
-			error("compiled without open and file redirection support");
+			error(_("compiled without open and file redirection support"));
 			free_args(val);
 			goto error;
 #endif
@@ -198,7 +198,7 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 		if (!src_is_fd) close(src);
 		free_args(val);
 #else
-		error("compiled without dup2 and redirection support");
+		error(_("compiled without dup2 and redirection support"));
 		free_args(val);
 		return -1;
 #endif
@@ -344,13 +344,13 @@ static void execute_pipe(node_t *node, int flags) {
 #else
 	(void)node;
 	exit_status = 1;
-	error("compiled without pipe support");
+	error(_("compiled without pipe support"));
 #endif
 }
 
 static void execute_for(node_t *node, int flags) {
 	if ((node->for_loop.var_name.flags & WORD_HAS_QUOTE) || strchr(node->for_loop.var_name.text, CTLESC) || !isalpha(node->for_loop.var_name.text[0])) {
-		error("invalid indentifier");
+		error(_("invalid indentifier"));
 		exit_status = 1;
 		return;
 	}

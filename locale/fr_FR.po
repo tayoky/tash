@@ -1,0 +1,108 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026 Tayoky
+# This file is distributed under the same license as the tash package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-21 15:08+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/execute.c:82 src/execute.c:87 src/execute.c:92 src/execute.c:96
+msgid "save fd"
+msgstr "sauvegarde du fd"
+
+#: src/execute.c:103
+msgid "compiled without fcntl and redirection support"
+msgstr "compilé sans le support de fcntl et des redirections"
+
+#: src/execute.c:112 src/execute.c:117
+msgid "restore fd"
+msgstr "restauration du fd"
+
+#: src/execute.c:143
+msgid "ambiguous redirection"
+msgstr "redirection ambigue"
+
+#: src/execute.c:174
+msgid "compiled without open and file redirection support"
+msgstr "compilé sans le support de open() et des redirections"
+
+#: src/execute.c:201
+msgid "compiled without dup2 and redirection support"
+msgstr "compilé sans le support de dup2() et des redirections"
+
+#: src/execute.c:347 src/expand.c:97
+msgid "compiled without pipe support"
+msgstr "complilé sans le support de pipe()"
+
+#: src/execute.c:353
+#, fuzzy
+msgid "invalid indentifier"
+msgstr "identifieur invalide"
+
+#: src/expand.c:198
+#, c-format
+msgid "bad substitution : %.*s"
+msgstr "mauvaise substitution : %.*s"
+
+#: src/expand.c:368
+msgid "bad substitution"
+msgstr "mauvaise substitution"
+
+#: src/expand.c:383
+#, c-format
+msgid "'%.*s' : variable unset"
+msgstr "'%.*s' : variable sans valeur"
+
+#: src/expand.c:407
+msgid "bad backtick expansion"
+msgstr "mauvaise expression backtick"
+
+#: src/mem.c:22 src/mem.c:38 src/mem.c:51 src/mem.c:64
+msgid "out of memory"
+msgstr "memoire pleine"
+
+#: src/parser.c:18
+#, c-format
+msgid "syntax error : %s"
+msgstr "erreur de syntaxe : %s"
+
+#: src/parser.c:124 src/parser.c:593 src/parser.c:734 src/parser.c:764
+#: src/parser.c:793 src/parser.c:852 src/parser.c:876
+#, c-format
+msgid "unexpected token '%s'"
+msgstr "jeton inattendu '%s'"
+
+#: src/parser.c:137
+#, c-format
+msgid "unexpected token '%s' (expected '%s')"
+msgstr "jeton inattendu '%s' ('%s' était attendu)"
+
+#: src/parser.c:189 src/parser.c:265 src/parser.c:287 src/parser.c:462
+#, c-format
+msgid "unexpected token '%s' (expected 'word')"
+msgstr "jeton inattendu '%s' (un 'word' etait attendu)"
+
+#: src/parser.c:208
+#, c-format
+msgid "unexpected token '%s' (expected ';' or '<newline>')"
+msgstr ""
+
+#: src/parser.c:601
+msgid "invalid identifier"
+msgstr "identifieur invalide"
+
+#: src/var.c:84
+#, c-format
+msgid "invalid environ string '%s'"
+msgstr "chaine de charactère d'environement invalide"

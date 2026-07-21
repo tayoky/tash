@@ -19,7 +19,7 @@ void *xmalloc(size_t size) {
 	if (!size) return NULL;
 	void *ptr = malloc(size);
 	if (!ptr) {
-		error("out of memory");
+		error(_("out of memory"));
 		abort();
 	}
 #ifdef DEBUG
@@ -35,7 +35,7 @@ void *xrealloc(void *p, size_t size) {
 	}
 	void *ptr = realloc(p, size);
 	if (!ptr) {
-		error("out of memory");
+		error(_("out of memory"));
 		abort();
 	}
 #ifdef DEBUG
@@ -48,7 +48,7 @@ char *xstrdup(const char *str) {
 	if (!str) return NULL;
 	char *ptr = strdup(str);
 	if (!ptr) {
-		error("out of memory");
+		error(_("out of memory"));
 		abort();
 	}
 #ifdef DEBUG
@@ -61,7 +61,7 @@ char *xstrndup(const char *str, size_t n) {
 	if (!str) return NULL;
 	char *ptr = strndup(str, n);
 	if (!ptr) {
-		error("out of memory");
+		error(_("out of memory"));
 		abort();
 	}
 #ifdef DEBUG

@@ -26,6 +26,7 @@ static void ex_script_home(const char *name) {
 void init(void) {
 	shell_pid = getpid();
 	shell_pgid = getpgid(0);
+	setup_locale();
 	setup_var();
 	setup_funcs();
 	putvar("TASH", tash_cmd);

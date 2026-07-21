@@ -94,7 +94,7 @@ static int execute_subshell(vector_t *dest, int in_quote, node_t *node) {
 	(void)in_quote;
 	(void)node;
 	exit_status = 1;
-	error("compiled without pipe support");
+	error(_("compiled without pipe support"));
 #endif
 }
 
@@ -195,7 +195,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		node_t *node = parse_list_buf(src, &end);
 		if (!node) return -1;
 		if (*end != ')') {
-			error("bad substitution : %.*s", (int)(end - src + 2), src - 2);
+			error(_("bad substitution : %.*s"), (int)(end - src + 2), src - 2);
 			free_node(node);
 			return -1;
 		}
@@ -365,7 +365,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		}
 		if (*src != '}') {
 bad_substitution:
-			error("bad substitution");
+			error(_("bad substitution"));
 error:
 			xfree(var);
 			return -1;
@@ -380,7 +380,7 @@ error:
 		// var is unset
 		if (flags & TASH_UNSET_EXIT) {
 unset_variable:
-			error("'%.*s' : variable unset", (int)param_len, param);
+			error(_("'%.*s' : variable unset"), (int)param_len, param);
 			return -1;
 		}
 		return 0;
@@ -404,7 +404,7 @@ static int handle_backtick(vector_t *dest, const char **ptr, int in_quote) {
 	xfree(buf);
 	if (!node) return -1;
 	if (*found_end != '\0') {
-		error("bad backtick expansion");
+		error(_("bad backtick expansion"));
 		free_node(node);
 		return -1;
 	}

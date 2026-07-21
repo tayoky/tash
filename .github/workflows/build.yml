@@ -15,6 +15,9 @@ jobs:
     - name: checkout
       uses: actions/checkout@v4
 
+    - name: install gettext
+      run: sudo apt install gettext -y
+
     - name: configure
       run: ./configure
 

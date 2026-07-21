@@ -1,3 +1,7 @@
+#include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
+#include <stdio.h>
 #include <tash.h>
 
 typedef struct mo_header {

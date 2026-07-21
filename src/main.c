@@ -37,6 +37,8 @@ int main(int argc, char **argv) {
 		tash_cmd++;
 	}
 
+	setup_locale();
+
 	int i = 1;
 
 	for (; i < argc; i++) {
@@ -56,7 +58,7 @@ int main(int argc, char **argv) {
 				help();
 				return 0;
 			}
-			error("unknow option '--%s' (see --help)", opt);
+			error(_("unknow option '--%s' (see --help)"), opt);
 			return 1;
 		}
 		while (*opt) {
@@ -68,7 +70,7 @@ int main(int argc, char **argv) {
 				flags |= TASH_INTERACTIVE;
 				break;
 			default:
-				error("unknow option '%c' (see --help)", *opt);
+				error(_("unknow option '%c' (see --help)"), *opt);
 				return 1;
 			}
 			opt++;
@@ -77,7 +79,7 @@ int main(int argc, char **argv) {
 	if (argc - i >= 1 && !strcmp(argv[i], "-c")) {
 		// shell launched with -c
 		if (argc - i < 2) {
-			error("missing command string");
+			error(_("missing command string"));
 			return 1;
 		}
 		_argc = 0;

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 15:08+0200\n"
+"POT-Creation-Date: 2026-07-21 15:23+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,7 +46,6 @@ msgid "compiled without pipe support"
 msgstr "complilé sans le support de pipe()"
 
 #: src/execute.c:353
-#, fuzzy
 msgid "invalid indentifier"
 msgstr "identifieur invalide"
 
@@ -67,6 +66,25 @@ msgstr "'%.*s' : variable sans valeur"
 #: src/expand.c:407
 msgid "bad backtick expansion"
 msgstr "mauvaise expression backtick"
+
+#: src/jobs.c:24
+#, c-format
+msgid "terminated on %s\n"
+msgstr "terminé sur %s\n"
+
+#: src/main.c:59
+#, c-format
+msgid "unknow option '--%s' (see --help)"
+msgstr "option non reconnue '--%s' (voir --help)"
+
+#: src/main.c:71
+#, c-format
+msgid "unknow option '%c' (see --help)"
+msgstr "option non reconnue '%c' (voir --help)"
+
+#: src/main.c:80
+msgid "missing command string"
+msgstr "commande non specifiée"
 
 #: src/mem.c:22 src/mem.c:38 src/mem.c:51 src/mem.c:64
 msgid "out of memory"

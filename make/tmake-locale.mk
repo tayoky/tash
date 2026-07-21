@@ -3,21 +3,12 @@
 LOCALES ?= $(wildcard locale/*.po)
 LOCALES_MO ?= $(LOCALES:%.po=$(BUILDDIR)/%.mo)
 
+ifneq ($(strip $(LOCALES_MO)),)
 all : $(LOCALES_MO)
 $(BUILDDIR)/%.mo : %.po
 	@mkdir -p "$(@D)"
 	@echo "GEN $@"
 	$(Q)msgfmt -o "$@" $^
-
-.PHONY : generate_template
-generate_template : $(BUILDDIR)/template.pot
-$(BUILDDIR)/template.pot : $(SRCS)
-	@mkdir -p "$(@D)"
-	@echo "GEN template.pot"
-	$(Q)xgettext --keyword=_ -o $@ $^
-	$(Q)for I in $(LOCALES) ; do \
-		msgmerge --update $$I $@; \
-	done
 
 .PHONY : install-locale
 install : install-locale
@@ -31,3 +22,14 @@ uninstall : uninstall-locale
 uninstall-locale :
 	@echo "UNINSTALL $(LOCALEDIR)/$(PROG)"
 	@rm -fr "$(LOCALEDIR)/$(PROG)"
+endif
+
+.PHONY : generate_template
+generate_template : $(BUILDDIR)/template.pot
+$(BUILDDIR)/template.pot : $(SRCS)
+	@mkdir -p "$(@D)"
+	@echo "GEN template.pot"
+	$(Q)xgettext --keyword=_ -o $@ $^
+	$(Q)for I in $(LOCALES) ; do \
+		msgmerge --update $$I $@; \
+	done

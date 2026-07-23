@@ -37,7 +37,9 @@ int main(int argc, char **argv) {
 		tash_cmd++;
 	}
 
-	setup_locale();
+#ifdef HAVE_TEXTDOMAIN
+	textdomain("tash");
+#endif
 
 	int i = 1;
 

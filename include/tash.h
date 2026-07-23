@@ -8,6 +8,9 @@
 #include <vector.h>
 #include <stdio.h>
 #include <stub.h>
+#ifdef HAVE_LIBINTL_H
+#include <libintl.h>
+#endif
 
 typedef struct token {
 	char *value;
@@ -291,9 +294,11 @@ void unregister_func(const char *name);
 void setup_funcs(void);
 
 // locale stuff
-void setup_locale(void);
-const char *locale_getstr(const char *msgid) __attribute__((format_arg(1)));
-#define _ locale_getstr
+#ifdef HAVE_GETTEXT
+#define _ gettext
+#else
+#define _(str) str
+#endif
 
 void init();
 

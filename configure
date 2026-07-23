@@ -1,11 +1,18 @@
 #!/bin/sh
 . ./tconf.sh
 
+OPTIONS="MULTI_LANGUAGES"
+: ${MULTI_LANGUAGES:="yes"}
 tconf_init "$@"
 
 tconf_search_cc "$HOST"
 tconf_require "C compiler" "$CC"
 tconf_find_os
+
+if echo "$HOST" | grep "android" ; then
+	LDFLAGS="$LDFLAGS -landroid-support"
+fi
+
 tconf_require_header "$CC" stdio.h
 tconf_require_header "$CC" stdlib.h
 tconf_require_header "$CC" stddef.h
@@ -20,6 +27,7 @@ tconf_check_header "$CC" termios.h
 tconf_check_header "$CC" signal.h
 tconf_check_header "$CC" dirent.h
 tconf_check_header "$CC" time.h
+tconf_check_header "$CC" libintl.h
 tconf_check_header "$CC" sys/ioctl.h
 tconf_check_header "$CC" sys/stat.h
 
@@ -31,5 +39,7 @@ tconf_check_func "$CC" "unistd.h" "gethostname"
 tconf_check_func "$CC" "unistd.h" "dup2"
 tconf_check_func "$CC" "fcntl.h" "fcntl"
 tconf_check_func "$CC" "fcntl.h" "open"
+tconf_check_func "$CC" "libintl.h" "gettext"
+tconf_check_func "$CC" "libintl.h" "textdomain"
 
 tconf_fini

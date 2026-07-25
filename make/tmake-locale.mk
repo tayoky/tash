@@ -38,7 +38,7 @@ update-po : $(TEMPLATE_POT)
 $(TEMPLATE_POT) : $(SRCS)
 	@mkdir -p "$(@D)"
 	@echo "GEN $(TEMPLATE_POT)"
-	$(Q)xgettext --keyword=_ \
+	$(Q)xgettext --keyword=_ --keyword=N_ \
 		--package-name="$(PACKAGE)" \
 		--package-version="$(VERSION)" \
 		-o "$@" $^

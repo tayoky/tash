@@ -43,8 +43,8 @@ int main(int argc, char **argv) {
 #ifdef HAVE_SETLOCALE
 	setlocale(LC_ALL, "");
 #endif
-#ifdef HAVE_TEXTDOMAIN
-	textdomain("tash");
+#ifdef HAVE_BINDTEXTDOMAIN
+	bindtextdomain("tash", LOCALEDIR);
 #endif
 
 	int i = 1;

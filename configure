@@ -42,6 +42,7 @@ tconf_check_func "$CC" "fcntl.h" "fcntl"
 tconf_check_func "$CC" "fcntl.h" "open"
 tconf_check_func "$CC" "locale.h" "setlocale"
 tconf_check_func "$CC" "libintl.h" "gettext"
+tconf_check_func "$CC" "libintl.h" "textdomain"
 tconf_check_func "$CC" "libintl.h" "bindtextdomain"
 
 tconf_fini

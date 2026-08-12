@@ -46,6 +46,9 @@ int main(int argc, char **argv) {
 #ifdef HAVE_BINDTEXTDOMAIN
 	bindtextdomain("tash", LOCALEDIR);
 #endif
+#ifdef HAVE_TEXTDOMAIN
+	textdomain("tash");
+#endif
 
 	int i = 1;
 

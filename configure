@@ -28,6 +28,7 @@ tconf_check_header "$CC" signal.h
 tconf_check_header "$CC" dirent.h
 tconf_check_header "$CC" time.h
 tconf_check_header "$CC" libintl.h
+tconf_check_header "$CC" locale.h
 tconf_check_header "$CC" sys/ioctl.h
 tconf_check_header "$CC" sys/stat.h
 
@@ -39,6 +40,7 @@ tconf_check_func "$CC" "unistd.h" "gethostname"
 tconf_check_func "$CC" "unistd.h" "dup2"
 tconf_check_func "$CC" "fcntl.h" "fcntl"
 tconf_check_func "$CC" "fcntl.h" "open"
+tconf_check_func "$CC" "locale.h" "setlocale"
 tconf_check_func "$CC" "libintl.h" "gettext"
 tconf_check_func "$CC" "libintl.h" "textdomain"
 

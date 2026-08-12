@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <tash.h>
 #include <unistd.h>
+#ifdef HAVE_SETLOCALE
+#include <locale.h>
+#endif
 
 int flags;
 int _argc;
@@ -37,6 +40,9 @@ int main(int argc, char **argv) {
 		tash_cmd++;
 	}
 
+#ifdef HAVE_SETLOCALE
+	setlocale(LC_ALL, "");
+#endif
 #ifdef HAVE_TEXTDOMAIN
 	textdomain("tash");
 #endif

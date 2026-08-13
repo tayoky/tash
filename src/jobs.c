@@ -36,17 +36,33 @@ static void sigint_handler(int signum) {
 }
 #endif
 
+static void set_signal_handler(int signum, void (*handler)(int signum)) {
+#ifdef HAVE_SIGACTION
+	struct sigaction sa = {
+		.sa_handler = handler,
+		.sa_flags = 0,
+	};
+	sigemptyset(&sa.sa_mask);
+	sigaction(signum, &sa, NULL);
+#elif defined(HAVE_SIGNAL)
+	signal(signum, handler);
+#else
+	(void)signum;
+	(void)handler;
+#endif
+}
+
 void job_control_setup(void) {
 #ifdef HAVE_SIGNAL_H
 	if (flags & TASH_JOB_CONTROL) {
-		signal(SIGTTOU, SIG_IGN);
-		signal(SIGTTIN, SIG_IGN);
-		signal(SIGINT, sigint_handler);
+		set_signal_handler(SIGTTOU, SIG_IGN);
+		set_signal_handler(SIGTTIN, SIG_IGN);
+		set_signal_handler(SIGINT, sigint_handler);
 	} else {
-		signal(SIGTTOU, SIG_DFL);
-		signal(SIGTTIN, SIG_DFL);
-		signal(SIGTSTP, SIG_DFL);
-		signal(SIGINT, SIG_DFL);
+		set_signal_handler(SIGTTOU, SIG_DFL);
+		set_signal_handler(SIGTTIN, SIG_DFL);
+		set_signal_handler(SIGTSTP, SIG_DFL);
+		set_signal_handler(SIGINT, SIG_DFL);
 	}
 #endif
 }

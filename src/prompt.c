@@ -442,6 +442,11 @@ static void do_prompt(void) {
 			redraw();
 			break;
 		default:;
+#ifdef WCHAR_SUPPORT
+			if (iswcntrl(c)) break
+#else
+			if (iscntrl(c)) break;
+#endif
 			memmove(&prompt_buf[prompt_cursor + 1], &prompt_buf[prompt_cursor], (prompt_len - prompt_cursor) * sizeof(*prompt_buf));
 			prompt_buf[prompt_cursor] = c;
 			prompt_len++;

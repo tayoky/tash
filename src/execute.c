@@ -503,7 +503,7 @@ void execute(node_t *node, int flags) {
 		loop_depth--;
 		break;
 	case NODE_NEGATE:
-		execute(node->single.child, flags);
+		execute(node->single.child, flags & ~FLAG_NO_FORK);
 		exit_status = !exit_status;
 		break;
 	case NODE_GROUP:

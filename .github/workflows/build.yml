@@ -12,20 +12,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: checkout
+    - name: Checkout
       uses: actions/checkout@v4
 
-    - name: install gettext
+    - name: Install gettext
       run: sudo apt install gettext -y
 
-    - name: configure
-      run: ./configure
+    - name: Configure
+      run: mkdir -p build && cd build && ../configure
 
-    - name: build
-      run: make
+    - name: Bbuild
+      run: make -C build
 
-    - name: install
-      run: sudo make install
+    - name: Install
+      run: sudo make install -C build
 
-    - name: test
+    - name: Test
       run: ./test.sh

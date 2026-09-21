@@ -8,7 +8,7 @@ FILESGROUPS += DOCS
 PACKAGE = tash
 VERSION := $(shell git -C $(SRCDIR) describe --tags --always 2>/dev/null || echo unknown)
 SRCS = $(wildcard $(SRCDIR)/src/*.c)
-CFLAGS += -I$(SRCDIR)/include --std=c99 -D_POSIX_C_SOURCE=200809L
+CFLAGS += -I$(SRCDIR)/include
 CFLAGS += -DVERSION='"$(VERSION)"'
 CFLAGS += -DLOCALEDIR='"$(LOCALEDIR)"'
 

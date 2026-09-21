@@ -701,6 +701,7 @@ static node_t *parse_command(source_t *src) {
 			return parse_func(src, token);
 		}
 		// it's a classic commands
+		// fallthrough
 	case T_DUP_IN: // commands that start with a redir
 	case T_DUP_OUT:
 	case T_INFERIOR:

@@ -128,9 +128,22 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			unget_char(src, c);
 			return;
 		}
-		if (c == end) {
+		if (!quote && c == end) {
 			APPEND(c);
 			return;
+		}
+		if (c == EOF) {
+			if (quote) {
+				error(_("unexpected EOF while looking for matching '%c'"), quote);
+				src->lexer.error = 1;
+				return;
+			} else if (end) {
+				error(_("unexpected EOF while looking for matching '%c'"), end);
+				src->lexer.error = 1;
+				return;
+			} else {
+				return;
+			}
 		}
 		switch (c) {
 		case '\'':
@@ -199,14 +212,14 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 
 				// prepare next char
 				c = get_char(src);
-				if (c == EOF) return;
 				get_word_helper(src, buf, flags, c, ')', 1);
+				if (src->lexer.error) return;
 				break;
 			}
 			if (next_c == '{') {
 				c = get_char(src);
-				if (c == EOF) return;
 				get_word_helper(src, buf, flags, c, '}', is_subshell ? is_subshell + 1 : 0);
+				if (src->lexer.error) return;
 				break;
 			}
 			// prevent the '*' or '?' from being quoted in "$*" or "$?"
@@ -230,8 +243,8 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 				break;
 			}
 			c = get_char(src);
-			if (c == EOF) return;
 			get_word_helper(src, buf, flags, c, ')', 1);
+			if (src->lexer.error) return;
 			break;
 		case '`':
 			// consume the '`'
@@ -239,8 +252,8 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 
 			// prepare next char
 			c = get_char(src);
-			if (c == EOF) return;
 			get_word_helper(src, buf, flags, c, '`', 1);
+			if (src->lexer.error) return;
 			break;
 		case CTLESC:
 		case CTLQUOT:
@@ -252,7 +265,6 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			break;
 		}
 		c = get_char(src);
-		if (c == EOF) return;
 	}
 }
 
@@ -361,6 +373,11 @@ token_t *next_token(source_t *src) {
 	get_word_helper(src, &buf, &token->flags, c, 0, 0);
 	vector_push_back(&buf, (char[]){'\0'});
 	token->value = buf.data;
+
+	if (src->lexer.error) {
+		destroy_token(token);
+		return NULL;
+	}
 
 	// is it a reserved word ?
 	char *str = buf.data;

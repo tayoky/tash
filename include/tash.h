@@ -156,6 +156,7 @@ typedef struct node {
 
 typedef struct lexer {
 	token_t *putback;
+	int error;
 } lexer_t;
 
 typedef struct source {

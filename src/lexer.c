@@ -247,6 +247,12 @@ static void get_word_helper(source_t *src, vector_t *buf, int *flags, int c, int
 			if (src->lexer.error) return;
 			break;
 		case '`':
+			if (quote == '\'') {
+				if (!is_subshell) APPEND(CTLESC);
+				APPEND(c);
+				break;
+			}
+
 			// consume the '`'
 			APPEND(c);
 

@@ -233,7 +233,8 @@ void execute(node_t *node, int flags);
 #define FLAG_NO_FORK 0x01
 
 // parsing/ AST manipulation
-node_t *parse_list_buf(const char *str, const char **end);
+#define TERMINATORS(...) (int[]){__VA_ARGS__, T_NULL}
+node_t *parse_list_buf(const char *str, const char **end, int *terminators);
 void free_node(node_t *node);
 
 /**

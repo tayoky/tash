@@ -192,7 +192,7 @@ static int handle_var(vector_t *dest, const char **ptr, int in_quote) {
 		// we got a subshell
 		src++;
 		const char *end;
-		node_t *node = parse_list_buf(src, &end);
+		node_t *node = parse_list_buf(src, &end, TERMINATORS(T_CLOSE_PAREN));
 		if (!node) return -1;
 		if (*end != ')') {
 			error(_("bad substitution : %.*s"), (int)(end - src + 2), src - 2);
@@ -400,7 +400,7 @@ static int handle_backtick(vector_t *dest, const char **ptr, int in_quote) {
 	const char *end = strchr(*ptr, '`');
 	char *buf = xstrndup(*ptr, end - *ptr);
 	const char *found_end;
-	node_t *node = parse_list_buf(buf, &found_end);
+	node_t *node = parse_list_buf(buf, &found_end, NULL);
 	xfree(buf);
 	if (!node) return -1;
 	if (*found_end != '\0') {

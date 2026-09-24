@@ -3,12 +3,11 @@
 # This file is distributed under the same license as the tash package.
 # Tayoky tayoky4848@gmail.com 2026.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: tash v0.1.0-29-g4f2340e\n"
-"Report-Msgid-Bugs-To: <tayoky4848@gmail.com>\n"
-"POT-Creation-Date: 2026-07-21 15:52+0200\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-24 11:47+0200\n"
 "PO-Revision-Date: 2026-07-21 20:28+0200\n"
 "Last-Translator: Tayoky tayoky4848@gmail.com\n"
 "Language-Team: Tayoky tayoky4848@gmail.com\n"
@@ -61,7 +60,7 @@ msgstr "%ld n'est pas un processus enfant"
 
 #: src/builtin.c:318
 msgid "'return' only work in sourced scripts and functions"
-msgstr ""
+msgstr "'return' n'a d'utilité que dans les scripts sourcés et les fonctions"
 
 #: src/builtin.c:382
 #, c-format
@@ -132,17 +131,22 @@ msgstr "mauvaise expression backtick"
 msgid "terminated on %s\n"
 msgstr "terminé sur %s\n"
 
-#: src/main.c:61
+#: src/lexer.c:137 src/lexer.c:141
+#, c-format
+msgid "unexpected EOF while looking for matching '%c'"
+msgstr "fin de fichier inattendue en cherchant pour le '%c' fermant"
+
+#: src/main.c:72
 #, c-format
 msgid "unknow option '--%s' (see --help)"
 msgstr "option non reconnue '--%s' (voir --help)"
 
-#: src/main.c:73
+#: src/main.c:84
 #, c-format
 msgid "unknow option '%c' (see --help)"
 msgstr "option non reconnue '%c' (voir --help)"
 
-#: src/main.c:82
+#: src/main.c:93
 msgid "missing command string"
 msgstr "commande non specifiée"
 
@@ -155,32 +159,31 @@ msgstr "memoire pleine"
 msgid "syntax error : %s"
 msgstr "erreur de syntaxe : %s"
 
-#: src/parser.c:124 src/parser.c:593 src/parser.c:734 src/parser.c:764
-#: src/parser.c:793 src/parser.c:852 src/parser.c:876
-#, c-format
-msgid "unexpected token '%s'"
-msgstr "jeton inattendu '%s'"
-
-#: src/parser.c:137
+#: src/parser.c:127
 #, c-format
 msgid "unexpected token '%s' (expected '%s')"
 msgstr "jeton inattendu '%s' ('%s' était attendu)"
 
-#: src/parser.c:189 src/parser.c:265 src/parser.c:287 src/parser.c:462
+#: src/parser.c:180 src/parser.c:260 src/parser.c:284 src/parser.c:477
 #, c-format
 msgid "unexpected token '%s' (expected 'word')"
 msgstr "jeton inattendu '%s' (un 'word' etait attendu)"
 
-#: src/parser.c:208
+#: src/parser.c:202
 #, c-format
 msgid "unexpected token '%s' (expected ';' or '<newline>')"
-msgstr ""
+msgstr "jetton inattendu '%s' (un ';' ou '<newline>' etait attendu)"
 
-#: src/parser.c:601
+#: src/parser.c:611
 msgid "invalid identifier"
 msgstr "identifieur invalide"
 
+#: src/parser.c:669 src/parser.c:741
+#, c-format
+msgid "unexpected token '%s'"
+msgstr "jeton inattendu '%s'"
+
 #: src/var.c:84
-#, fuzzy, c-format
+#, c-format
 msgid "invalid environ string '%s'"
 msgstr "chaine de charactère d'environement invalide"

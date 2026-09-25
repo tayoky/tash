@@ -151,7 +151,7 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 			char *end;
 			src = strtol(val[0], &end, 10);
 			if (end == val[0] && *end) {
-				error(_("invalid fd number : '%s'"), val[0]);
+				error(_("invalid fd number '%s'"), val[0]);
 				free_args(val);
 				goto error;
 			}

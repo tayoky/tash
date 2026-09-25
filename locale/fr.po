@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tash v0.1.0-29-g4f2340e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-24 11:47+0200\n"
+"POT-Creation-Date: 2026-09-25 08:51+0200\n"
 "PO-Revision-Date: 2026-07-21 20:28+0200\n"
 "Last-Translator: Tayoky tayoky4848@gmail.com\n"
 "Language-Team: Tayoky tayoky4848@gmail.com\n"
@@ -92,19 +92,24 @@ msgstr "restauration du fd"
 msgid "ambiguous redirection"
 msgstr "redirection ambigue"
 
-#: src/execute.c:174
+#: src/execute.c:154
+#, c-format
+msgid "invalid fd number '%s'"
+msgstr "numéro de descripteur de fichier invalide '%s'"
+
+#: src/execute.c:179
 msgid "compiled without open and file redirection support"
 msgstr "compilé sans le support de open() et des redirections"
 
-#: src/execute.c:201
+#: src/execute.c:206
 msgid "compiled without dup2 and redirection support"
 msgstr "compilé sans le support de dup2() et des redirections"
 
-#: src/execute.c:347 src/expand.c:97
+#: src/execute.c:352 src/expand.c:97
 msgid "compiled without pipe support"
 msgstr "complilé sans le support de pipe()"
 
-#: src/execute.c:353
+#: src/execute.c:358
 msgid "invalid indentifier"
 msgstr "identifieur invalide"
 
@@ -120,7 +125,7 @@ msgstr "mauvaise substitution"
 #: src/expand.c:383
 #, c-format
 msgid "'%.*s' : variable unset"
-msgstr "'%.*s' : variable sans valeur"
+msgstr "'%.*s' : variable non définie"
 
 #: src/expand.c:407
 msgid "bad backtick expansion"

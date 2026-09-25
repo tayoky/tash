@@ -149,7 +149,12 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 		int src_is_fd = 0;
 		if (redirs[i].type & REDIR_DUP) {
 			char *end;
-			src = strtol(*val, &end, 10);
+			src = strtol(val[0], &end, 10);
+			if (end == val[0] && *end) {
+				error(_("invalid fd number : '%s'"), val[0]);
+				free_args(val);
+				goto error;
+			}
 			src_is_fd = 1;
 		} else {
 #ifdef HAVE_OPEN
@@ -164,9 +169,9 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 					flags |= O_TRUNC;
 				}
 			}
-			src = open(*val, flags, 0666);
+			src = open(val[0], flags, 0666);
 			if (src < 0) {
-				perror(*val);
+				perror(val[0]);
 				free_args(val);
 				goto error;
 			}

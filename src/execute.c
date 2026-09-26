@@ -368,6 +368,7 @@ static void execute_for(node_t *node, int flags) {
 	}
 
 	loop_depth++;
+	exit_status = 0;
 	for (char **current = strings; *current; current++) {
 		putvar(node->for_loop.var_name.text, *current);
 		if (current[1]) {
@@ -470,13 +471,16 @@ void execute(node_t *node, int flags) {
 		exit_status = 0;
 		execute(node->_if.condition, flags & ~FLAG_NO_FORK);
 		if (exit_status == 0) {
+			exit_status = 0;
 			execute(node->_if.body, flags);
 		} else {
+			exit_status = 0;
 			execute(node->_if.else_body, flags);
 		}
 		break;
 	case NODE_WHILE:
 		loop_depth++;
+		int prev_exit_status = 0;
 		for (;;) {
 			exit_status = 0;
 			execute(node->loop.condition, flags & ~FLAG_NO_FORK);
@@ -485,14 +489,17 @@ void execute(node_t *node, int flags) {
 			CONTINUE_CHECK
 			VARIOUS_BREAK_CHECK
 			execute(node->loop.body, flags & ~FLAG_NO_FORK);
+			prev_exit_status = exit_status;
 			BREAK_CHECK
 			CONTINUE_CHECK
 			VARIOUS_BREAK_CHECK
 		}
+		exit_status = prev_exit_status;
 		loop_depth--;
 		break;
 	case NODE_UNTIL:
 		loop_depth++;
+		prev_exit_status = 0;
 		for (;;) {
 			exit_status = 0;
 			execute(node->loop.condition, flags & ~FLAG_NO_FORK);
@@ -501,10 +508,12 @@ void execute(node_t *node, int flags) {
 			CONTINUE_CHECK
 			VARIOUS_BREAK_CHECK
 			execute(node->loop.body, flags & ~FLAG_NO_FORK);
+			prev_exit_status = exit_status;
 			BREAK_CHECK
 			CONTINUE_CHECK
 			VARIOUS_BREAK_CHECK
 		}
+		exit_status = prev_exit_status;
 		loop_depth--;
 		break;
 	case NODE_NEGATE:

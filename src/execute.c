@@ -145,17 +145,23 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 			goto error;
 		}
 #ifdef HAVE_DUP2
-		int src;
+		int src = -1;
 		int src_is_fd = 0;
+		int close_fd = 0;
 		if (redirs[i].type & REDIR_DUP) {
-			char *end;
-			src = strtol(val[0], &end, 10);
-			if (end == val[0] && *end) {
-				error(_("invalid fd number '%s'"), val[0]);
-				free_args(val);
-				goto error;
+			// the special fd "-" can be used to close descriptors
+			if (!strcmp(val[0], "-")) {
+				close_fd = 1;
+			} else {
+				char *end;
+				src = strtol(val[0], &end, 10);
+				if (end == val[0] && *end) {
+					error(_("invalid fd number '%s'"), val[0]);
+					free_args(val);
+					goto error;
+				}
+				src_is_fd = 1;
 			}
-			src_is_fd = 1;
 		} else {
 #ifdef HAVE_OPEN
 			int flags;
@@ -183,7 +189,7 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 		}
 
 		// save before apply if neccesary
-		if (have_fd(redirs[i].fd)) {
+		if (have_fd(redirs[i].fd) && src != redirs[i].fd) {
 			if (save_fd(redirs[i].fd, &saved) < 0) {
 				goto error;
 			}
@@ -194,13 +200,21 @@ static int apply_redirs(redir_t *redirs, size_t count, vector_t *save) {
 		flush_fd(redirs[i].fd);
 
 		// actually apply redir
-		if (dup2(src, redirs[i].fd) < 0) {
-			perror(*val);
+		if (close_fd) {
+			if (close(redirs[i].fd) < 0) {
+				perror(_("close fd"));
+				free_args(val);
+				goto error;
+			}
+		} else if (src != redirs[i].fd) {
+			if (dup2(src, redirs[i].fd) < 0) {
+				perror(val[0]);
+				if (!src_is_fd) close(src);
+				free_args(val);
+				goto error;
+			}
 			if (!src_is_fd) close(src);
-			free_args(val);
-			goto error;
 		}
-		if (!src_is_fd) close(src);
 		free_args(val);
 #else
 		error(_("compiled without dup2 and redirection support"));

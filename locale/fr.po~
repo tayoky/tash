@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: tash v0.1.0-29-g4f2340e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-27 21:48+0200\n"
-"PO-Revision-Date: 2026-09-27 21:48+0200\n"
+"POT-Creation-Date: 2026-09-25 08:51+0200\n"
+"PO-Revision-Date: 2026-07-21 20:28+0200\n"
 "Last-Translator: Tayoky tayoky4848@gmail.com\n"
 "Language-Team: Tayoky tayoky4848@gmail.com\n"
 "Language: fr\n"
@@ -78,7 +78,7 @@ msgstr "complilé sans le support des signaux"
 
 #: src/execute.c:82 src/execute.c:87 src/execute.c:92 src/execute.c:96
 msgid "save fd"
-msgstr "sauvegarde du descripteur de fichier"
+msgstr "sauvegarde du fd"
 
 #: src/execute.c:103
 msgid "compiled without fcntl and redirection support"
@@ -86,34 +86,30 @@ msgstr "compilé sans le support de fcntl et des redirections"
 
 #: src/execute.c:112 src/execute.c:117
 msgid "restore fd"
-msgstr "restauration du descripteur de fichier"
+msgstr "restauration du fd"
 
 #: src/execute.c:143
 msgid "ambiguous redirection"
 msgstr "redirection ambigue"
 
-#: src/execute.c:159
+#: src/execute.c:154
 #, c-format
 msgid "invalid fd number '%s'"
 msgstr "numéro de descripteur de fichier invalide '%s'"
 
-#: src/execute.c:185
+#: src/execute.c:179
 msgid "compiled without open and file redirection support"
 msgstr "compilé sans le support de open() et des redirections"
 
-#: src/execute.c:205
-msgid "close fd"
-msgstr "fermeture du descripteur de fichier"
-
-#: src/execute.c:220
+#: src/execute.c:206
 msgid "compiled without dup2 and redirection support"
 msgstr "compilé sans le support de dup2() et des redirections"
 
-#: src/execute.c:366 src/expand.c:97
+#: src/execute.c:352 src/expand.c:97
 msgid "compiled without pipe support"
 msgstr "complilé sans le support de pipe()"
 
-#: src/execute.c:372
+#: src/execute.c:358
 msgid "invalid indentifier"
 msgstr "identifieur invalide"
 
